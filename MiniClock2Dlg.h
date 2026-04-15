@@ -67,4 +67,12 @@ public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnMenuColor();
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
+	afx_msg void OnMenuViewTimeList();
+	afx_msg void OnMenuResetTimeListPos();
+	afx_msg void OnMenuAlarmAfterMinutes();
+	afx_msg void OnMenuFont();
+	afx_msg void OnMenuAlwaysOnTop();
+	afx_msg void OnMenuShutdown();
+	afx_msg void OnMenuRestartExplorerTaskbarx();
+	afx_msg void OnMenuClose();
 };

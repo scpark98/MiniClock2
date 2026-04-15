@@ -78,6 +78,14 @@ BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	ON_WM_TIMER()
 	ON_COMMAND(ID_MENU_COLOR, &CMiniClock2Dlg::OnMenuColor)
 	ON_WM_MOUSEWHEEL()
+	ON_COMMAND(ID_MENU_VIEW_TIME_LIST, &CMiniClock2Dlg::OnMenuViewTimeList)
+	ON_COMMAND(ID_MENU_RESET_TIME_LIST_POS, &CMiniClock2Dlg::OnMenuResetTimeListPos)
+	ON_COMMAND(ID_MENU_ALARM_AFTER_MINUTES, &CMiniClock2Dlg::OnMenuAlarmAfterMinutes)
+	ON_COMMAND(ID_MENU_FONT, &CMiniClock2Dlg::OnMenuFont)
+	ON_COMMAND(ID_MENU_ALWAYS_ON_TOP, &CMiniClock2Dlg::OnMenuAlwaysOnTop)
+	ON_COMMAND(ID_MENU_SHUTDOWN, &CMiniClock2Dlg::OnMenuShutdown)
+	ON_COMMAND(ID_MENU_RESTART_EXPLORER_TASKBARX, &CMiniClock2Dlg::OnMenuRestartExplorerTaskbarx)
+	ON_COMMAND(ID_MENU_CLOSE, &CMiniClock2Dlg::OnMenuClose)
 END_MESSAGE_MAP()
 
 
@@ -309,6 +317,8 @@ void CMiniClock2Dlg::OnContextMenu(CWnd* pWnd, CPoint point)
 	menu.LoadMenu(IDR_MENU_CONTEXT);
 	pMenu = (CMenu*)menu.GetSubMenu(0);
 
+	pMenu->CheckMenuItem(ID_MENU_ALWAYS_ON_TOP, is_top_most(m_hWnd) ? MF_CHECKED : MF_UNCHECKED);
+
 	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
 }
 
@@ -404,4 +414,51 @@ BOOL CMiniClock2Dlg::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	}
 
 	return CDialogEx::OnMouseWheel(nFlags, zDelta, pt);
+}
+
+void CMiniClock2Dlg::OnMenuViewTimeList()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+}
+
+void CMiniClock2Dlg::OnMenuResetTimeListPos()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+}
+
+void CMiniClock2Dlg::OnMenuAlarmAfterMinutes()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+}
+
+void CMiniClock2Dlg::OnMenuFont()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+}
+
+void CMiniClock2Dlg::OnMenuAlwaysOnTop()
+{
+	bool onTop = theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
+	onTop = !onTop;
+	theApp.WriteProfileInt(_T("setting"), _T("always on top"), onTop);
+
+	if (onTop)
+		SetWindowPos(&wndTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	else
+		SetWindowPos(&wndNoTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+}
+
+void CMiniClock2Dlg::OnMenuShutdown()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+}
+
+void CMiniClock2Dlg::OnMenuRestartExplorerTaskbarx()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+}
+
+void CMiniClock2Dlg::OnMenuClose()
+{
+	OnBnClickedCancel();
 }
