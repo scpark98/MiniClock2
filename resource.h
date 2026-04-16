@@ -11,9 +11,15 @@
 #define IDR_MENU1                       131
 #define IDR_MENU_TIME_LIST              131
 #define IDD_TIME_LIST                   132
+#define IDD_ADD_ALARM                   134
 #define IDC_LIST_TIME                   1002
 #define IDC_CHECK_AUTO_HIDE             1004
+#define IDC_EDIT_MINUTES                1006
+#define IDC_EDIT_NAME                   1007
+#define IDC_BUTTON_5MINUTES             1008
+#define IDC_CHECK_ADD_FAVORITE          1023
 #define IDC_STATIC_ALARM_LIST           1024
+#define IDC_CHECK_FLOATING              1024
 #define ID_CONTEXTMENU_32771            32771
 #define ID_MENU_COLOR                   32772
 #define ID_MENU_VIEW_TIME_LIST          32773
@@ -41,7 +47,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        134
+#define _APS_NEXT_RESOURCE_VALUE        136
 #define _APS_NEXT_COMMAND_VALUE         32793
 #define _APS_NEXT_CONTROL_VALUE         1000
 #define _APS_NEXT_SYMED_VALUE           101

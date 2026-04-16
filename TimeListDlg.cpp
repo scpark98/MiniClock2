@@ -44,7 +44,7 @@ BEGIN_MESSAGE_MAP(CTimeListDlg, CDialogEx)
 	ON_WM_PAINT()
 	//ON_WM_NCPAINT()
 	ON_WM_NCCALCSIZE()
-	//ON_WM_NCACTIVATE()
+	ON_WM_NCACTIVATE()
 END_MESSAGE_MAP()
 
 
@@ -211,6 +211,108 @@ void CTimeListDlg::OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp)
 BOOL CTimeListDlg::OnNcActivate(BOOL bActive)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+	Invalidate();
 	return TRUE;
 	return CDialogEx::OnNcActivate(bActive);
 }
+
+void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool floating)
+{
+	CString sStart;
+	CString sEnd;
+	CString	sDate;
+	int minutes = 0;
+
+	CTime t = CTime::GetCurrentTime();
+
+	sStart = get_time_str(t);
+
+	//title이 비어있다면 "제목없음"으로 설정한다.
+	if (title.IsEmpty())
+	{
+		int no_title_count = 0;
+		for (int i = 0; i < m_list.size(); i++)
+		{
+			if (m_list.get_text(i, col_title).Find(_T("제목없음")) >= 0)
+				no_title_count++;
+		}
+
+		title.Format(_T("제목없음%d"), no_title_count);
+	}
+
+	//hhmm 형식으로 입력되면 이는 분 단위가 아니라 hh:mm의 의미로 입력했다고 보고 ':'을 추가해준다.
+	if (duration.GetLength() == 4 && IsNatural(duration))
+	{
+		duration.Insert(2, _T(":"));
+	}
+
+	//만약 알람시간을 표시하는 형식인 hh:mm라면 (hh:mm:ss로 입력해도 초는 무시된다)
+	//hh:mm, h:mm, hh:m, h:m 모두 가능하다.
+	if (get_char_count(duration, ':') >= 1)
+	{
+		//h:m, h:mm, hh:m, hh:mm 형식으로 입력된 경우라면
+		sEnd = duration;
+
+		std::deque<CString> token;
+		int hour = 0;
+		int minute = 0;
+
+		get_token_str(duration, token, _T(":"), false);
+		hour = _ttoi(token[0]);
+		if (token.size() > 1)
+			minute = _ttoi(token[1]);
+
+		sEnd.Format(_T("%02d:%02d:00"), hour, minute);
+
+		CTime tEnd = get_CTime_from_datetime_str(_T(""), sEnd);
+		CTimeSpan ts = tEnd - t;
+
+		if (ts.GetTotalSeconds() < 0)
+		{
+			XMessageBox(m_hWnd, _T("이미 지난 시각입니다."), _T("입력 시각 오류"), 3);
+			return;
+		}
+
+		if (ts.GetTotalMinutes() > 60)
+			duration.Format(_T("%dh %dm"), ts.GetHours(), ts.GetMinutes());
+		else
+			duration.Format(_T("%dm"), ts.GetMinutes());
+	}
+	//알람시간이 아닌 알람시간까지의 남은 시간을 "1h 23m" 또는 "1.23"과 같은 형식으로 입력한 경우라면
+	else
+	{
+		minutes = get_minutes_from_duration_string(duration);
+	}
+
+	if (add_favorite)
+	{
+		CString value;
+		value.Format(_T("%s|%s"), title, duration);
+
+		int count = theApp.GetProfileInt(_T("favorite"), _T("count"), 0);
+		theApp.WriteProfileString(_T("favorite"), i2S(count, false, true, 3), value);
+		theApp.WriteProfileInt(_T("favorite"), _T("count"), count + 1);
+	}
+
+	//알람 시간이 명시됐다면 sEnd가 채워져 있으므로 여기서는 스킵되고
+	//남은 시간이 명시됐다면 sEnd를 계산해준다.
+	if (sEnd.IsEmpty())
+		sEnd = get_time_str(t + minutes * 60);
+	sDate = get_date_str(t);
+
+	//현재 목록이 없다면 추가되는 항목을 무조건 floating으로 설정한다.
+	if (m_list.size() == 0)
+		floating = true;
+
+	int index = m_list.insert_item(-1, 0, title, sStart, duration, sEnd, _T(""), sDate);
+
+	if (floating)
+	{
+		m_floating_title = sName;
+		theApp.WriteProfileString(_T("TimeListDlg"), _T("floating item title"), m_floating_title);
+	}
+
+	save_timelist();
+
+	m_item.push_back(CAlarmItem(title.GetBuffer(), CTime::GetCurrentTime(), _ttoi(duration), add_favorite, floating));
+}	

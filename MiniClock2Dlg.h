@@ -80,4 +80,5 @@ public:
 	afx_msg void OnMenuRestartExplorerTaskbarx();
 	afx_msg void OnMenuClose();
 	afx_msg void OnActivateApp(BOOL bActive, DWORD dwThreadID);
+	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
 };

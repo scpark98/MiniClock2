@@ -10,6 +10,9 @@
 
 #include "Common/CDialog/CSCColorPicker/SCColorPicker.h"
 
+#include "AddAlarmDlg.h"
+
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -87,6 +90,7 @@ BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	ON_COMMAND(ID_MENU_RESTART_EXPLORER_TASKBARX, &CMiniClock2Dlg::OnMenuRestartExplorerTaskbarx)
 	ON_COMMAND(ID_MENU_CLOSE, &CMiniClock2Dlg::OnMenuClose)
 	ON_WM_ACTIVATEAPP()
+	ON_WM_LBUTTONDBLCLK()
 END_MESSAGE_MAP()
 
 
@@ -442,7 +446,12 @@ void CMiniClock2Dlg::OnMenuResetTimeListPos()
 
 void CMiniClock2Dlg::OnMenuAlarmAfterMinutes()
 {
-	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	CAddAlarmDlg dlg;
+
+	if (dlg.DoModal() == IDCANCEL)
+		return;
+
+	m_timelistDlg.add(dlg.m_name, dlg.m_duration, dlg.m_add_favorite, dlg.m_as_floating);
 }
 
 void CMiniClock2Dlg::OnMenuFont()
@@ -484,4 +493,12 @@ void CMiniClock2Dlg::OnActivateApp(BOOL bActive, DWORD dwThreadID)
 	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
 	if (m_first_run && (m_timelistDlg.m_list.size() == 0))
 		return;
+}
+
+void CMiniClock2Dlg::OnLButtonDblClk(UINT nFlags, CPoint point)
+{
+	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+	OnMenuAlarmAfterMinutes();
+
+	CDialogEx::OnLButtonDblClk(nFlags, point);
 }

@@ -22,7 +22,7 @@ public:
 		is_paused = false;
 	}
 
-	TCHAR		title[128] = { 0, };
+	TCHAR		title[64] = { 0, };
 	CTime		start = 0;
 	int			duration = 0;			//시작부터 종료까지의 total seconds
 	bool		is_lock = false;
@@ -39,8 +39,10 @@ public:
 	CTimeListDlg(CWnd* pParent = nullptr);   // 표준 생성자입니다.
 	virtual ~CTimeListDlg();
 
-	CResizeCtrl				m_resize;
+	CResizeCtrl		m_resize;
 	std::deque<CAlarmItem>	m_item;
+
+	void			add(CString title, CString duration, bool add_favorite = false, bool floating = false);
 
 	enum LIST_COLUMN
 	{

@@ -44,7 +44,7 @@ CMiniClock2App theApp;
 
 BOOL CMiniClock2App::InitInstance()
 {
-	m_hMutex = ::CreateMutex(NULL, FALSE, _T("MiniClock"));
+	m_hMutex = ::CreateMutex(NULL, FALSE, _T("MiniClock2"));
 	if (::GetLastError() == ERROR_ALREADY_EXISTS)
 	{
 		//HWND	hWnd;;
@@ -59,7 +59,7 @@ BOOL CMiniClock2App::InitInstance()
 		//따라서 이를 구분하기 위해 공백을 추가한다.
 		//hWnd = GetHWndByExeFilename( GetExeFilename(false), true, true );
 		//hWnd = ::FindWindow( NULL, _T("MiniClock") );
-		CWnd* pWnd = FindWindowByCaption(_T("MiniClock"), true);
+		CWnd* pWnd = FindWindowByCaption(_T("MiniClock2"), true);
 		if (pWnd)
 		{
 			pWnd->SetForegroundWindow();
