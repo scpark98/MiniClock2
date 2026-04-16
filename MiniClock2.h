@@ -19,6 +19,9 @@ class CMiniClock2App : public CWinApp
 {
 public:
 	CMiniClock2App();
+	~CMiniClock2App();
+
+	HANDLE		m_hMutex;
 
 // 재정의입니다.
 public:
@@ -27,6 +30,7 @@ public:
 // 구현입니다.
 
 	DECLARE_MESSAGE_MAP()
+	virtual int ExitInstance();
 };
 
 extern CMiniClock2App theApp;

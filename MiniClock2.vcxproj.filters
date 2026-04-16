@@ -16,6 +16,9 @@
     <Filter Include="Common">
       <UniqueIdentifier>{35d4a882-c22e-4e67-9df7-7f0699813122}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Common\CVtListCtrlEx">
+      <UniqueIdentifier>{4ebcaece-c6d2-4eb2-ae52-943c3cadc622}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MiniClock2.h">
@@ -66,6 +69,27 @@
     <ClInclude Include="..\Common\CSliderCtrl\SCSliderCtrl\SCSliderCtrl.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="TimeListDlg.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\HeaderCtrlEx.h">
+      <Filter>Common\CVtListCtrlEx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\list_data.h">
+      <Filter>Common\CVtListCtrlEx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\VtListCtrlEx.h">
+      <Filter>Common\CVtListCtrlEx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CButton\GdiButton\GdiButton.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CStatic\SCStatic\SCStatic.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\system\ShellImageList\ShellImageList.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MiniClock2.cpp">
@@ -107,6 +131,27 @@
     <ClCompile Include="..\Common\CSliderCtrl\SCSliderCtrl\SCSliderCtrl.cpp">
       <Filter>Common</Filter>
     </ClCompile>
+    <ClCompile Include="TimeListDlg.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CListCtrl\CVtListCtrlEx\list_data.cpp">
+      <Filter>Common\CVtListCtrlEx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CListCtrl\CVtListCtrlEx\VtListCtrlEx.cpp">
+      <Filter>Common\CVtListCtrlEx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CListCtrl\CVtListCtrlEx\HeaderCtrlEx.cpp">
+      <Filter>Common\CVtListCtrlEx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CButton\GdiButton\GdiButton.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CStatic\SCStatic\SCStatic.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\system\ShellImageList\ShellImageList.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MiniClock2.rc">
@@ -122,5 +167,10 @@
     <Image Include="res\MiniClock2.ico">
       <Filter>리소스 파일</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\Common\CListCtrl\CVtListCtrlEx\readme.txt">
+      <Filter>Common\CVtListCtrlEx</Filter>
+    </Text>
   </ItemGroup>
 </Project>

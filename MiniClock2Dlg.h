@@ -5,7 +5,7 @@
 #pragma once
 
 #include "Common/SCGdiplusBitmap.h"
-
+#include "TimeListDlg.h"
 
 // CMiniClock2Dlg 대화 상자
 class CMiniClock2Dlg : public CDialogEx
@@ -16,6 +16,8 @@ public:
 
 	CSCGdiplusBitmap	m_img;
 	//CSCShapeDlg		m_main;
+
+	CTimeListDlg		m_timelistDlg;
 
 // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME
@@ -32,6 +34,8 @@ protected:
 
 	std::deque<std::deque<CSCParagraph>> m_para;
 	CSCTextProperty		m_text_prop;
+
+	bool				m_first_run = true;
 
 	int					m_alpha = 255;
 	void				render(Gdiplus::Bitmap* img);;
@@ -75,4 +79,5 @@ public:
 	afx_msg void OnMenuShutdown();
 	afx_msg void OnMenuRestartExplorerTaskbarx();
 	afx_msg void OnMenuClose();
+	afx_msg void OnActivateApp(BOOL bActive, DWORD dwThreadID);
 };

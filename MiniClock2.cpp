@@ -23,10 +23,17 @@ END_MESSAGE_MAP()
 
 CMiniClock2App::CMiniClock2App()
 {
-	// TODO: 여기에 생성 코드를 추가합니다.
-	// InitInstance에 모든 중요한 초기화 작업을 배치합니다.
+	m_hMutex = NULL;
 }
 
+CMiniClock2App::~CMiniClock2App()
+{
+	if (m_hMutex)
+	{
+		::ReleaseMutex(m_hMutex);
+		m_hMutex = NULL;
+	}
+}
 
 // 유일한 CMiniClock2App 개체입니다.
 
@@ -37,6 +44,30 @@ CMiniClock2App theApp;
 
 BOOL CMiniClock2App::InitInstance()
 {
+	m_hMutex = ::CreateMutex(NULL, FALSE, _T("MiniClock"));
+	if (::GetLastError() == ERROR_ALREADY_EXISTS)
+	{
+		//HWND	hWnd;;
+
+		//중복실행 방지 및 기존 실행되는 프로그램이 minimized되어 있거나
+		//inactive 상태이면 activate시키는 코드인데
+		//GetHWndByExeFilename으로도 잘 얻어오지 못하는 듯하다.
+		//따라서 dialog의 캡션 끝에 공백을 붙이고 FindWindow로 해당 윈도우를 찾아서
+		//위의 액션을 수행하는 것이 가장 안전한듯하다.
+		//참고로 공백을 붙이는 이유는 만약 윈도우 탐색기에서 현재 프로젝트 폴더를 열었다면
+		//윈도우 탐색기의 타이틀도 이 프로젝트의 이름으로 표시되는 윈도우 버전이 있다.
+		//따라서 이를 구분하기 위해 공백을 추가한다.
+		//hWnd = GetHWndByExeFilename( GetExeFilename(false), true, true );
+		//hWnd = ::FindWindow( NULL, _T("MiniClock") );
+		CWnd* pWnd = FindWindowByCaption(_T("MiniClock"), true);
+		if (pWnd)
+		{
+			pWnd->SetForegroundWindow();
+			pWnd->SetActiveWindow();
+			return false;
+		}
+	}
+
 	// Windows XP에서는 InitCommonControlsEx()를 필요로 합니다.
 	// 사용하도록 지정하는 경우, Windows XP 상에서 반드시 InitCommonControlsEx()가 필요합니다.
 	// InitCommonControlsEx()를 사용하지 않으면 창을 만들 수 없습니다.
@@ -102,3 +133,10 @@ BOOL CMiniClock2App::InitInstance()
 	return FALSE;
 }
 
+
+int CMiniClock2App::ExitInstance()
+{
+	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+
+	return CWinApp::ExitInstance();
+}

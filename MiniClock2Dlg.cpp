@@ -86,6 +86,7 @@ BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	ON_COMMAND(ID_MENU_SHUTDOWN, &CMiniClock2Dlg::OnMenuShutdown)
 	ON_COMMAND(ID_MENU_RESTART_EXPLORER_TASKBARX, &CMiniClock2Dlg::OnMenuRestartExplorerTaskbarx)
 	ON_COMMAND(ID_MENU_CLOSE, &CMiniClock2Dlg::OnMenuClose)
+	ON_WM_ACTIVATEAPP()
 END_MESSAGE_MAP()
 
 
@@ -121,6 +122,11 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 작은 아이콘을 설정합니다.
 
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
+	SetWindowText(_T("MiniClock2"));
+
+	m_timelistDlg.Create(IDD_TIME_LIST, this);
+	m_timelistDlg.ShowWindow(SW_SHOW);
+
 	load_setting();
 
 	bool onTop = true;// theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
@@ -128,6 +134,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 
 	RestoreWindowPosition(&theApp, this);
 
+	SetTimer(timer_convert_ime, 1000, NULL);
 	SetTimer(timer_time, 1000, NULL);
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
@@ -229,6 +236,7 @@ void CMiniClock2Dlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)
 
 void CMiniClock2Dlg::OnBnClickedOk()
 {
+	OnMenuAlarmAfterMinutes();
 }
 
 void CMiniClock2Dlg::OnBnClickedCancel()
@@ -352,6 +360,12 @@ void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)
 	{
 		rebuild_image();
 	}
+	else if (nIDEvent == timer_convert_ime)
+	{
+		KillTimer(timer_convert_ime);
+		ime_convert(m_hWnd, true);
+		m_first_run = false;
+	}
 
 	CDialogEx::OnTimer(nIDEvent);
 }
@@ -461,4 +475,13 @@ void CMiniClock2Dlg::OnMenuRestartExplorerTaskbarx()
 void CMiniClock2Dlg::OnMenuClose()
 {
 	OnBnClickedCancel();
+}
+
+void CMiniClock2Dlg::OnActivateApp(BOOL bActive, DWORD dwThreadID)
+{
+	CDialogEx::OnActivateApp(bActive, dwThreadID);
+
+	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
+	if (m_first_run && (m_timelistDlg.m_list.size() == 0))
+		return;
 }
