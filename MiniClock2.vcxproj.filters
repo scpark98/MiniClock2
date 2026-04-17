@@ -93,6 +93,9 @@
     <ClInclude Include="AddAlarmDlg.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\messagebox\CSCMessageBox\SCMessageBox.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MiniClock2.cpp">
@@ -158,6 +161,9 @@
     <ClCompile Include="AddAlarmDlg.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="..\Common\messagebox\CSCMessageBox\SCMessageBox.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MiniClock2.rc">
@@ -178,5 +184,6 @@
     <Text Include="..\Common\CListCtrl\CVtListCtrlEx\readme.txt">
       <Filter>Common\CVtListCtrlEx</Filter>
     </Text>
+    <Text Include="readme.txt" />
   </ItemGroup>
 </Project>

@@ -5,26 +5,26 @@
 #include "Common/colors.h"
 #include "Common/CButton/GdiButton/GdiButton.h"
 #include "Common/CListCtrl/CVtListCtrlEx/VtListCtrlEx.h"
-#include "Common/messagebox/XMessageBox/XMessageBox.h"
+#include "Common/messagebox/CSCMessageBox/SCMessageBox.h"
 #include "Common/CStatic/SCStatic/SCStatic.h"
 #include "Common/ResizeCtrl.h"
 
 class CAlarmItem
 {
 public:
-	CAlarmItem(TCHAR* _title, CTime _start, int _duration, bool _is_lock, bool _is_floating)
+	CAlarmItem(TCHAR* _title, CTime _start, CTimeSpan _ts_duration, bool _is_lock, bool _is_floating)
 	{
 		_tcscpy_s(title, sizeof(title) / sizeof(TCHAR),	_title);
 		start = _start;
-		duration = _duration;
+		ts_duration = _ts_duration;
 		is_lock = _is_lock;
 		is_floating = _is_floating;
 		is_paused = false;
 	}
 
-	TCHAR		title[64] = { 0, };
+	TCHAR		title[16] = { 0, };
 	CTime		start = 0;
-	int			duration = 0;			//시작부터 종료까지의 total seconds
+	CTimeSpan	ts_duration;
 	bool		is_lock = false;
 	bool		is_floating = false;
 	bool		is_paused = false;		//타이머 일시 정지. 종료 시각이 늘어난다.
@@ -42,7 +42,17 @@ public:
 	CResizeCtrl		m_resize;
 	std::deque<CAlarmItem>	m_item;
 
-	void			add(CString title, CString duration, bool add_favorite = false, bool floating = false);
+	void			add(CString title, CString duration, bool add_favorite = false, bool floating = false, bool save_list = true);
+
+protected:
+	CSCMessageBox	m_msgbox;
+	void			load_timelist();
+	void			save_timelist();
+
+	enum TIMER_ID
+	{
+		timer_time = 0,
+	};
 
 	enum LIST_COLUMN
 	{
@@ -61,6 +71,12 @@ public:
 		menu_favorite_start = 8000,
 	};
 	void			on_menu_favorites(UINT nID);
+
+	//1:13(=1h 13m), 1d 20m(=1일 20분) 등의 문자열을 총 minutes로 변환한다.
+	int				get_minutes_from_duration_string(CString& duration);
+
+	//get total minutes from day hour minutes. ex) 1d 2h 3m
+	int				get_total_minutes_from_dhm(CString dhm_time);
 
 
 // 대화 상자 데이터입니다.
@@ -90,4 +106,6 @@ public:
 	afx_msg void OnNcPaint();
 	afx_msg void OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp);
 	afx_msg BOOL OnNcActivate(BOOL bActive);
+	afx_msg LRESULT OnNcHitTest(CPoint point);
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 };
