@@ -91,6 +91,9 @@ BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	ON_COMMAND(ID_MENU_CLOSE, &CMiniClock2Dlg::OnMenuClose)
 	ON_WM_ACTIVATEAPP()
 	ON_WM_LBUTTONDBLCLK()
+	ON_WM_SETFOCUS()
+	ON_WM_KILLFOCUS()
+	ON_WM_NCHITTEST()
 END_MESSAGE_MAP()
 
 
@@ -344,8 +347,8 @@ BOOL CMiniClock2Dlg::OnEraseBkgnd(CDC* pDC)
 void CMiniClock2Dlg::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-	if (IsShiftPressed())
-		DefWindowProc(WM_NCLBUTTONDOWN, HTCAPTION, MAKEWORD(point.x, point.y));
+	//if (IsShiftPressed())
+	//	DefWindowProc(WM_NCLBUTTONDOWN, HTCAPTION, MAKEWORD(point.x, point.y));
 
 	CDialogEx::OnLButtonDown(nFlags, point);
 }
@@ -425,18 +428,21 @@ void CMiniClock2Dlg::OnMenuColor()
 BOOL CMiniClock2Dlg::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-	if (IsShiftPressed())
-	{
-		m_text_prop.size += (zDelta > 0 ? 1 : -1);
-		rebuild_image();
-	}
+	//if (IsShiftPressed())
+	//{
+	//	m_text_prop.size += (zDelta > 0 ? 1 : -1);
+	//	rebuild_image();
+	//}
 
 	return CDialogEx::OnMouseWheel(nFlags, zDelta, pt);
 }
 
 void CMiniClock2Dlg::OnMenuViewTimeList()
 {
-	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	if (m_timelistDlg.IsWindowVisible())
+		m_timelistDlg.ShowWindow(SW_HIDE);
+	else
+		m_timelistDlg.ShowWindow(SW_SHOW);
 }
 
 void CMiniClock2Dlg::OnMenuResetTimeListPos()
@@ -446,8 +452,14 @@ void CMiniClock2Dlg::OnMenuResetTimeListPos()
 
 void CMiniClock2Dlg::OnMenuAlarmAfterMinutes()
 {
-	CAddAlarmDlg dlg;
+	// 리스트 컨트롤까지 직접 비활성화
+	//if (m_timelistDlg.m_hWnd)
+	//{
+	//	m_timelistDlg.EnableWindow(FALSE);
+	//	m_timelistDlg.m_list.EnableWindow(FALSE);  // ← 핵심
+	//}
 
+	CAddAlarmDlg dlg;
 	if (dlg.DoModal() == IDCANCEL)
 		return;
 
@@ -488,11 +500,30 @@ void CMiniClock2Dlg::OnMenuClose()
 
 void CMiniClock2Dlg::OnActivateApp(BOOL bActive, DWORD dwThreadID)
 {
-	CDialogEx::OnActivateApp(bActive, dwThreadID);
+	//CDialogEx::OnActivateApp(bActive, dwThreadID);
+	//return;
 
-	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
+	if (!m_timelistDlg.m_hWnd)
+		return;
+
 	if (m_first_run && (m_timelistDlg.m_list.size() == 0))
 		return;
+
+	//bActive 상태가 되면 타임리스트 창은 반드시 보여야 하고
+	//InActive 상태가 될 경우는 타임리스트가 자동 숨김 옵션에 따라 유지하거나 감춰준다.
+	//단, 맨 처음 실행시에도 이 코드가 수행되는데
+	//등록된 알람 항목이 있다면 실행 시 리스트를 보여주면서 실행하면 되지만
+	//항목이 없을 경우는 굳이 리스트를 보여줄 필요없이 실행하는게 좋다.
+	//우선 프로그램 실행 시에는 적용 안되도록 플래그를 체크한다.
+
+	if (bActive)
+	{
+		m_timelistDlg.ShowWindow(SW_SHOW);
+	}
+	else if (m_timelistDlg.m_check_autohide.GetCheck())
+	{
+		m_timelistDlg.ShowWindow(bActive ? SW_SHOW : SW_HIDE);
+	}
 }
 
 void CMiniClock2Dlg::OnLButtonDblClk(UINT nFlags, CPoint point)
@@ -501,4 +532,52 @@ void CMiniClock2Dlg::OnLButtonDblClk(UINT nFlags, CPoint point)
 	OnMenuAlarmAfterMinutes();
 
 	CDialogEx::OnLButtonDblClk(nFlags, point);
+}
+
+void CMiniClock2Dlg::OnSetFocus(CWnd* pOldWnd)
+{
+	CDialogEx::OnSetFocus(pOldWnd);
+
+	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
+}
+
+void CMiniClock2Dlg::OnKillFocus(CWnd* pNewWnd)
+{
+	CDialogEx::OnKillFocus(pNewWnd);
+
+	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
+}
+
+BOOL CMiniClock2Dlg::PreTranslateMessage(MSG* pMsg)
+{
+	if (pMsg->hwnd != m_hWnd)
+		return FALSE;  // 다른 창 메시지는 건드리지 않음
+
+	switch (pMsg->message)
+	{
+	case WM_LBUTTONDBLCLK:
+		OnMenuAlarmAfterMinutes();
+		return TRUE;
+	case WM_KEYDOWN:
+		if (pMsg->wParam == VK_ESCAPE) { OnMenuClose(); return TRUE; }
+		if (pMsg->wParam == VK_RETURN) { OnMenuAlarmAfterMinutes(); return TRUE; }
+		break;
+	case WM_MOUSEWHEEL:
+		if (IsShiftPressed()) {
+			m_text_prop.size += GET_WHEEL_DELTA_WPARAM(pMsg->wParam) > 0 ? 1 : -1;
+			rebuild_image();
+			return TRUE;
+		}
+		break;
+	}
+	return CDialogEx::PreTranslateMessage(pMsg);
+}
+
+LRESULT CMiniClock2Dlg::OnNcHitTest(CPoint point)
+{
+	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+	if (IsShiftPressed())
+		return HTCAPTION;  // 시스템이 드래그를 직접 처리
+
+	return CDialogEx::OnNcHitTest(point);
 }

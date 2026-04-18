@@ -3,6 +3,7 @@
 
 #include "pch.h"
 #include "MiniClock2.h"
+#include "MiniClock2Dlg.h"
 #include "afxdialogex.h"
 #include "TimeListDlg.h"
 
@@ -47,6 +48,15 @@ BEGIN_MESSAGE_MAP(CTimeListDlg, CDialogEx)
 	ON_WM_NCACTIVATE()
 	ON_WM_NCHITTEST()
 	ON_WM_TIMER()
+	ON_WM_ACTIVATEAPP()
+	ON_BN_CLICKED(IDC_CHECK_AUTO_HIDE, &CTimeListDlg::OnBnClickedCheckAutoHide)
+	ON_COMMAND(ID_MENU_DELETE, &CTimeListDlg::OnMenuDelete)
+	ON_NOTIFY(NM_DBLCLK, IDC_LIST_TIME, &CTimeListDlg::OnNMDblclkListTime)
+	ON_COMMAND(ID_MENU_RESET_START_TIME, &CTimeListDlg::OnMenuResetStartTime)
+	ON_COMMAND(ID_MENU_FLOATING, &CTimeListDlg::OnMenuFloating)
+	ON_COMMAND(ID_MENU_COPY_TO_CLIPBOARD, &CTimeListDlg::OnMenuCopyToClipboard)
+	ON_COMMAND(ID_MENU_LOCK_LISTITEM, &CTimeListDlg::OnMenuLockListitem)
+	ON_REGISTERED_MESSAGE(Message_CSCShapeDlg, &CTimeListDlg::on_message_CSCShapeDlg)
 END_MESSAGE_MAP()
 
 
@@ -85,6 +95,13 @@ BOOL CTimeListDlg::OnInitDialog()
 	m_check_autohide.set_font_weight(FW_BOLD);
 	m_check_autohide.SetCheck(theApp.GetProfileInt(_T("TimeListDlg"), _T("auto hide"), false));
 
+	m_floating.set_text(this, _T(" "), 13.9, Gdiplus::FontStyle::FontStyleBold, 1, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
+		Gdiplus::Color(255, 128, 128, 192),
+		Gdiplus::Color(255, 0, 0, 0),
+		Gdiplus::Color(255, 64, 64, 64),
+		Gdiplus::Color(1, 0, 0, 0));
+	RestoreWindowPosition(&theApp, &m_floating, _T("TimeListDlg\\m_floating"), false, true, false);
+
 	RestoreWindowPosition(&theApp, this, _T("TimeListDlg"));// , false, true, true);
 
 	m_msgbox.create(this, _T("MiniClock2"), IDR_MAINFRAME);
@@ -99,7 +116,18 @@ BOOL CTimeListDlg::OnInitDialog()
 
 BOOL CTimeListDlg::PreTranslateMessage(MSG* pMsg)
 {
-	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+	if (pMsg->message == WM_KEYDOWN)
+	{
+		switch (pMsg->wParam)
+		{
+			case VK_F2:
+				::PostMessage(GetParent()->GetSafeHwnd(), pMsg->message, pMsg->wParam, pMsg->lParam);
+				return true;
+			case VK_DELETE:
+				OnMenuDelete();
+				return true;
+		}
+	}
 
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
@@ -135,6 +163,18 @@ void CTimeListDlg::OnDestroy()
 {
 	m_list.save_column_width(&theApp, _T("TimeListDlg\\list"));
 
+	//이미 m_floating는 파괴된 상태이므로 여기서 저장해선 안된다.
+	//main dlg가 파괴될 때 m_floating도 같이 파괴되도록 설정되어 있으므로 main dlg의 OnDestroy()에서 저장하도록 한다.
+	//또는 CSCShapeDlg에서 이동 시 메시지를 전달해서 여기서 저장할수도 있다.
+	//SaveWindowPosition(&theApp, &m_floating, _T("TimeListDlg\\m_floating"));
+
+	for (int i = 0; i < m_list.GetItemCount(); i++)
+	{
+		auto item = (CAlarmItem*)m_list.GetItemData(i);
+		if (item)
+			delete item;
+	}
+
 	CDialogEx::OnDestroy();
 }
 
@@ -146,9 +186,62 @@ void CTimeListDlg::OnLButtonDown(UINT nFlags, CPoint point)
 	CDialogEx::OnLButtonDown(nFlags, point);
 }
 
-void CTimeListDlg::OnContextMenu(CWnd* /*pWnd*/, CPoint /*point*/)
+void CTimeListDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 {
-	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
+	CMenu menu;
+	CMenu* pMenu;
+
+	menu.LoadMenu(IDR_MENU_TIME_LIST);
+	pMenu = (CMenu*)menu.GetSubMenu(0);
+
+	int count = theApp.GetProfileInt(_T("favorite"), _T("count"), 0);
+	if (count > 0)
+	{
+		CString str;
+		CString caption;
+
+		for (int i = 0; i < count; i++)
+		{
+			str = theApp.GetProfileString(_T("favorite"), i2S(i, false, true, 3), _T(""));
+
+			std::deque<CString> token;
+			get_token_str(str, token, _T("|"));
+
+			if (token.size() < 2)
+				continue;
+
+			caption.Format(_T("%s (%s%s) (&%d)"), token[0], token[1], (token[1].Find(_T(":")) > 0) ? _T("") : _T("분"), i + 1);
+			pMenu->AppendMenu(MF_STRING, menu_favorite_start + i, caption);
+		}
+	}
+
+	int index = m_list.get_selected_index();
+
+	if (index >= 0)
+	{
+		auto item = (CAlarmItem*)m_list.GetItemData(index);
+
+		if (item->is_floating)
+			pMenu->CheckMenuItem(ID_MENU_FLOATING, MF_CHECKED);
+
+		if (item->is_locked)
+		{
+			pMenu->CheckMenuItem(ID_MENU_LOCK_LISTITEM, MF_CHECKED);
+			pMenu->EnableMenuItem(ID_MENU_RESET_START_TIME, MF_DISABLED);
+		}
+		else
+		{
+			pMenu->CheckMenuItem(ID_MENU_LOCK_LISTITEM, MF_UNCHECKED);
+		}
+	}
+	else
+	{
+		pMenu->EnableMenuItem(ID_MENU_FLOATING, MF_DISABLED);
+		pMenu->EnableMenuItem(ID_MENU_RESET_START_TIME, MF_DISABLED);
+		pMenu->EnableMenuItem(ID_MENU_LOCK_LISTITEM, MF_DISABLED);
+	}
+
+	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
 }
 
 void CTimeListDlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
@@ -218,9 +311,12 @@ void CTimeListDlg::OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp)
 
 BOOL CTimeListDlg::OnNcActivate(BOOL bActive)
 {
-	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
 	Invalidate();
-	return TRUE;
+	UpdateWindow();
+
+	//return TRUE;를 할 경우 비활성화 될 때 여전히 상단 바가 남는다. FALSE로 하니 남는 버그가 사라짐.
+	//return FALSE;를 할 경우 흰색바는 사라지지만 다른 dlg가 입력이벤트를 전혀 처리하지 못하는 현상이 발생함.
+	return TRUE;// FALSE;
 	return CDialogEx::OnNcActivate(bActive);
 }
 
@@ -314,11 +410,16 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 	//floating은 단 1 항목만 가능하다.
 	if (floating)
 	{
-		for (auto item : m_item)
-			item.is_floating = false;
+		for (int i = 0; i < m_list.size(); i++)
+		{
+			auto item = (CAlarmItem*)m_list.GetItemData(i);
+			if (item)
+				item->is_floating = false;
+		}
 	}
 
-	m_item.push_back(CAlarmItem(title.GetBuffer(), tStart, ts_duration, add_favorite, floating));
+	CAlarmItem* data = new CAlarmItem(title.GetBuffer(), tStart, ts_duration, add_favorite, floating);
+	m_list.SetItemData(index, reinterpret_cast<DWORD_PTR>(data));
 
 	if (save_list)
 		save_timelist();
@@ -437,25 +538,31 @@ void CTimeListDlg::load_timelist()
 				//add(item->title, get_time_str(item->ts_duration.GetTotalSeconds()), false, item->is_floating, false);
 				int index = m_list.insert_item(-1, 0, item->title,
 												get_time_str(item->start),
-												get_time_str(item->ts_duration.GetTotalSeconds()),
-												get_time_str(item->start + item->ts_duration), _T(""),
+												get_time_str(item->ts_duration),
+												get_time_str(item->start + item->ts_duration),
+												_T(""),
 												get_date_str(item->start));
-				m_item.push_back(*item);
+				m_list.SetItemData(index, reinterpret_cast<DWORD_PTR>(item));
 			}
-			delete[] reinterpret_cast<BYTE*>(item);
+			//이 프로젝트에서는 GetProfileBinary()로 얻어온 값을 계속 사용해야 하므로 지워서는 안된다.
+			//delete[] reinterpret_cast<BYTE*>(item);
 		}
 	}
 }
 
 void CTimeListDlg::save_timelist()
 {
-	AfxGetApp()->WriteProfileInt(_T("TimeListDlg"), _T("count"), m_item.size());
+	AfxGetApp()->WriteProfileInt(_T("TimeListDlg"), _T("count"), m_list.size());
 
-	for (int i = 0; i < m_item.size(); i++)
+	for (int i = 0; i < m_list.size(); i++)
 	{
 		CString key;
 		key.Format(_T("item%02d"), i);
-		AfxGetApp()->WriteProfileBinary(_T("TimeListDlg"), key, (LPBYTE)&m_item[i], sizeof(CAlarmItem));
+		CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(i);
+		if (item)
+		{
+			AfxGetApp()->WriteProfileBinary(_T("TimeListDlg"), key, (LPBYTE)item, sizeof(CAlarmItem));
+		}
 	}
 }
 
@@ -481,23 +588,182 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
 	CTime	t = CTime::GetCurrentTime();
+	bool	has_floating = false;
 
-	for (int i = 0; i < m_item.size(); i++)
+	for (int i = 0; i < m_list.size(); i++)
 	{
-		CTime end = m_item[i].start + m_item[i].ts_duration;
-		if (!m_item[i].is_paused && t >= end)
+		//if (!m_item[i].is_paused)
+		CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(i);
+		has_floating = has_floating || item->is_floating;
+		//trace(item->start);
+		//trace(item->ts_duration);
+		TRACE(_T("start: %s, duration: %s\n"), get_time_str(item->start), get_time_str(item->ts_duration));
+		CTime end = item->start + item->ts_duration;
+		CTimeSpan remain = end - t;
+		LONGLONG remain_seconds = remain.GetTotalSeconds();
+		CString str;
+
+		//24시간 넘게 남았다면 "n일 m시간"으로 표기.
+		if (remain.GetTotalHours() > 24)
+			str.Format(_T("%d일 %d시간"), remain.GetDays(), remain.GetHours());
+		else
+			str = get_time_str(remain.GetTotalSeconds());
+
+		//해당 시각이면 알림을 띠워주고
+		if (remain_seconds == 0)
 		{
-			m_msgbox.DoModal(m_item[i].title, MB_OK, 3);
-			m_list.delete_item(i);
-			m_item.erase(m_item.begin() + i);
-			save_timelist();
+			m_msgbox.set_message(item->title);
+		}
+		else if (remain_seconds < 0)
+		{
+			//초과된 항목은 색상을 붉게 표시하고
+			m_list.set_text_color(i, -1, Gdiplus::Color(128, 96, 16));
+			if (item->is_floating)
+				m_floating.set_text_color(Gdiplus::Color(128, 128, 96, 16));
+
+			//5분이 지났다면 완전 삭제한다.
+			if (remain_seconds < -300)
+			{
+				//delete item;
+				m_list.delete_item(i);
+				i--;
+				save_timelist();
+			}
 		}
 		else
 		{
 			CString sRemain = get_time_str(end - t);
 			m_list.set_text(i, col_remain, sRemain);
+
+			if (item->is_floating)
+			{
+				m_list.set_text_color(i, -1, gRGB(96, 128, 128));
+
+				CSCShapeDlgTextSetting* setting = m_floating.get_text_setting();
+				setting->text = str;
+				setting->text_prop.cr_text = Gdiplus::Color(255, 128, 128, 192);
+				m_floating.set_text(setting);
+			}
+			else if (item->is_locked)
+			{
+				m_list.set_text_color(i, -1, Gdiplus::Color::DimGray);
+			}
+			else
+			{
+				m_list.set_text_color(i, -1, listctrlex_unused_color);
+			}
 		}
+
+		m_floating.ShowWindow(has_floating ? SW_SHOW : SW_HIDE);
 	}
 
 	CDialogEx::OnTimer(nIDEvent);
+}
+
+void CTimeListDlg::OnActivateApp(BOOL bActive, DWORD dwThreadID)
+{
+	CDialogEx::OnActivateApp(bActive, dwThreadID);
+
+	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
+	if (GetOwner())
+		GetOwner()->SendMessage(WM_ACTIVATEAPP, (WPARAM)bActive, (LPARAM)dwThreadID);
+}
+
+void CTimeListDlg::OnBnClickedCheckAutoHide()
+{
+	theApp.WriteProfileInt(_T("TimeListDlg"), _T("auto hide"), m_check_autohide.GetCheck());
+}
+
+void CTimeListDlg::OnNMDblclkListTime(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
+	// TODO: Add your control notification handler code here
+	if (pNMItemActivate->iItem < 0)
+	{
+		((CMiniClock2Dlg*)GetParent())->OnMenuAlarmAfterMinutes();
+	}
+
+	*pResult = 0;
+}
+
+void CTimeListDlg::OnMenuResetStartTime()
+{
+	int selected = m_list.get_selected_index();
+	if (selected < 0)
+		return;
+
+	CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected);
+	if (item->is_locked)
+	{
+		m_msgbox.set_message(_T("잠긴 항목입니다."), MB_OK, 1);
+		return;
+	}
+
+	item->start = CTime::GetCurrentTime();
+	m_list.set_text(selected, col_start, get_time_str(item->start));
+}
+
+void CTimeListDlg::OnMenuFloating()
+{
+	int selected = m_list.get_selected_index();
+	if (selected < 0)
+		return;
+
+	CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected);
+	item->is_floating = !item->is_floating;
+
+	//선택 이외 항목들은 floating false로 만든다.
+	for (int i = 0; i < m_list.size(); i++)
+	{
+		if (i != selected)
+		{
+			item = (CAlarmItem*)m_list.GetItemData(i);
+			item->is_floating = false;
+		}
+	}
+}
+
+void CTimeListDlg::OnMenuCopyToClipboard()
+{
+	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+}
+
+void CTimeListDlg::OnMenuLockListitem()
+{
+	int selected = m_list.get_selected_index();
+	if (selected < 0)
+		return;
+
+	CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected);
+	item->is_locked = !item->is_locked;
+}
+
+void CTimeListDlg::OnMenuDelete()
+{
+	int selected = m_list.get_selected_index();
+	if (selected < 0)
+		return;
+
+	CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected);
+
+	if (item->is_floating)
+		m_floating.ShowWindow(SW_HIDE);
+
+	delete item;
+
+	m_list.delete_item(selected);
+	save_timelist();
+}
+
+LRESULT CTimeListDlg::on_message_CSCShapeDlg(WPARAM wParam, LPARAM lParam)
+{
+	CSCShapeDlgMessage* msg = (CSCShapeDlgMessage*)wParam;
+	if (msg->message == CSCShapeDlg::message_window_pos_changed)
+	{
+		if (msg->pThis == &m_floating)
+		{
+			SaveWindowPosition(&theApp, &m_floating, _T("TimeListDlg\\m_floating"));
+		}
+	}
+	return 0;
 }

@@ -44,6 +44,8 @@ protected:
 	void				load_setting();
 	void				save_setting();
 
+	bool   m_is_dragging = false;
+	POINT  m_drag_start = {};
 
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 지원입니다.
@@ -81,4 +83,8 @@ public:
 	afx_msg void OnMenuClose();
 	afx_msg void OnActivateApp(BOOL bActive, DWORD dwThreadID);
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
+	afx_msg void OnSetFocus(CWnd* pOldWnd);
+	afx_msg void OnKillFocus(CWnd* pNewWnd);
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
+	afx_msg LRESULT OnNcHitTest(CPoint point);
 };

@@ -39,6 +39,20 @@ END_MESSAGE_MAP()
 
 // CAddAlarmDlg 메시지 처리기
 
+BOOL CAddAlarmDlg::OnInitDialog()
+{
+	CDialogEx::OnInitDialog();
+	return TRUE;  // return TRUE unless you set the focus to a control
+	// 예외: OCX 속성 페이지는 FALSE를 반환해야 합니다.
+}
+
+BOOL CAddAlarmDlg::PreTranslateMessage(MSG* pMsg)
+{
+	// 이 다이얼로그와 자식 컨트롤의 메시지만 처리 — 부모 체인 간섭 차단
+
+	return CDialogEx::PreTranslateMessage(pMsg);
+}
+
 void CAddAlarmDlg::OnBnClickedOk()
 {
 	m_edit_name.GetWindowText(m_name);

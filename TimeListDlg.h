@@ -8,16 +8,17 @@
 #include "Common/messagebox/CSCMessageBox/SCMessageBox.h"
 #include "Common/CStatic/SCStatic/SCStatic.h"
 #include "Common/ResizeCtrl.h"
+#include "Common/CDialog/SCShapeDlg/SCShapeDlg.h"
 
 class CAlarmItem
 {
 public:
-	CAlarmItem(TCHAR* _title, CTime _start, CTimeSpan _ts_duration, bool _is_lock, bool _is_floating)
+	CAlarmItem(TCHAR* _title, CTime _start, CTimeSpan _ts_duration, bool _is_locked, bool _is_floating)
 	{
 		_tcscpy_s(title, sizeof(title) / sizeof(TCHAR),	_title);
 		start = _start;
 		ts_duration = _ts_duration;
-		is_lock = _is_lock;
+		is_locked = _is_locked;
 		is_floating = _is_floating;
 		is_paused = false;
 	}
@@ -25,7 +26,7 @@ public:
 	TCHAR		title[16] = { 0, };
 	CTime		start = 0;
 	CTimeSpan	ts_duration;
-	bool		is_lock = false;
+	bool		is_locked = false;
 	bool		is_floating = false;
 	bool		is_paused = false;		//타이머 일시 정지. 종료 시각이 늘어난다.
 };
@@ -40,9 +41,13 @@ public:
 	virtual ~CTimeListDlg();
 
 	CResizeCtrl		m_resize;
-	std::deque<CAlarmItem>	m_item;
+
+	//list와 m_item이 별도로 존재하면 안되고 CAlarmItem*을 list의 item data로 넣어서 관리하는 방식으로 바꿔야 한다.
+	//그래야 정렬, 수정, 삭제시에도 쉽게 관리된다.
+	//std::deque<CAlarmItem>	m_item;
 
 	void			add(CString title, CString duration, bool add_favorite = false, bool floating = false, bool save_list = true);
+	LRESULT			on_message_CSCShapeDlg(WPARAM wParam, LPARAM lParam);
 
 protected:
 	CSCMessageBox	m_msgbox;
@@ -78,6 +83,8 @@ protected:
 	//get total minutes from day hour minutes. ex) 1d 2h 3m
 	int				get_total_minutes_from_dhm(CString dhm_time);
 
+	CSCShapeDlg		m_floating;
+
 
 // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME
@@ -108,4 +115,12 @@ public:
 	afx_msg BOOL OnNcActivate(BOOL bActive);
 	afx_msg LRESULT OnNcHitTest(CPoint point);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	afx_msg void OnActivateApp(BOOL bActive, DWORD dwThreadID);
+	afx_msg void OnBnClickedCheckAutoHide();
+	afx_msg void OnMenuDelete();
+	afx_msg void OnNMDblclkListTime(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnMenuResetStartTime();
+	afx_msg void OnMenuFloating();
+	afx_msg void OnMenuCopyToClipboard();
+	afx_msg void OnMenuLockListitem();
 };

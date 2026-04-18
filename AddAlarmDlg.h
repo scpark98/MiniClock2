@@ -33,5 +33,6 @@ public:
 	CButton m_check_floating;
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedCancel();
-
+	virtual BOOL OnInitDialog();
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 };
