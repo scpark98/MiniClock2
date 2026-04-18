@@ -44,8 +44,10 @@ protected:
 	void				load_setting();
 	void				save_setting();
 
-	bool   m_is_dragging = false;
-	POINT  m_drag_start = {};
+	bool				m_is_dragging = false;
+	POINT				m_drag_start = {};
+
+	CString				m_system_shutdown;	//종료 시각(ex. "2350")
 
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 지원입니다.

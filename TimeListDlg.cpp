@@ -609,22 +609,40 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 		else
 			str = get_time_str(remain.GetTotalSeconds());
 
+		//남은 시간에 관계없이 남은 시각은 계속 변경되어야 한다.
+		if (item->is_floating)
+		{
+			CSCShapeDlgTextSetting* setting = m_floating.get_text_setting();
+			setting->text = str;
+			m_floating.set_text(setting);
+		}
+
+		//역시 남은 시각도 계속 변경되어야 한다.
+		m_list.set_text(i, col_remain, get_time_str(remain_seconds));
+
+
 		//해당 시각이면 알림을 띠워주고
 		if (remain_seconds == 0)
 		{
-			m_msgbox.set_message(item->title);
+			::MessageBeep(MB_ICONEXCLAMATION);
+			m_msgbox.DoModal(item->title, MB_OK, 60 * 60);
 		}
 		else if (remain_seconds < 0)
 		{
 			//초과된 항목은 색상을 붉게 표시하고
 			m_list.set_text_color(i, -1, Gdiplus::Color(128, 96, 16));
 			if (item->is_floating)
+			{
 				m_floating.set_text_color(Gdiplus::Color(128, 128, 96, 16));
+			}
 
 			//5분이 지났다면 완전 삭제한다.
 			if (remain_seconds < -300)
 			{
-				//delete item;
+				if (item->is_floating)
+					has_floating = false;
+
+				delete item;
 				m_list.delete_item(i);
 				i--;
 				save_timelist();
@@ -632,17 +650,10 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 		}
 		else
 		{
-			CString sRemain = get_time_str(end - t);
-			m_list.set_text(i, col_remain, sRemain);
-
 			if (item->is_floating)
 			{
 				m_list.set_text_color(i, -1, gRGB(96, 128, 128));
-
-				CSCShapeDlgTextSetting* setting = m_floating.get_text_setting();
-				setting->text = str;
-				setting->text_prop.cr_text = Gdiplus::Color(255, 128, 128, 192);
-				m_floating.set_text(setting);
+				m_floating.set_text_color(Gdiplus::Color(255, 128, 128, 192));
 			}
 			else if (item->is_locked)
 			{
@@ -653,9 +664,9 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 				m_list.set_text_color(i, -1, listctrlex_unused_color);
 			}
 		}
-
-		m_floating.ShowWindow(has_floating ? SW_SHOW : SW_HIDE);
 	}
+
+	m_floating.ShowWindow(has_floating ? SW_SHOW : SW_HIDE);
 
 	CDialogEx::OnTimer(nIDEvent);
 }

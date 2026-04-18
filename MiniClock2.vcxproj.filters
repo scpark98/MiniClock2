@@ -96,6 +96,9 @@
     <ClInclude Include="..\Common\messagebox\CSCMessageBox\SCMessageBox.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="ShutdownTimeDlg.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MiniClock2.cpp">
@@ -164,6 +167,9 @@
     <ClCompile Include="..\Common\messagebox\CSCMessageBox\SCMessageBox.cpp">
       <Filter>Common</Filter>
     </ClCompile>
+    <ClCompile Include="ShutdownTimeDlg.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MiniClock2.rc">
@@ -185,5 +191,16 @@
       <Filter>Common\CVtListCtrlEx</Filter>
     </Text>
     <Text Include="readme.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Media Include="res\sound\ding_high.wav">
+      <Filter>리소스 파일</Filter>
+    </Media>
+    <Media Include="res\sound\ding_low.wav">
+      <Filter>리소스 파일</Filter>
+    </Media>
+    <Media Include="res\sound\ding_mid.wav">
+      <Filter>리소스 파일</Filter>
+    </Media>
   </ItemGroup>
 </Project>

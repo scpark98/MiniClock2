@@ -10,7 +10,9 @@
 
 #include "Common/CDialog/CSCColorPicker/SCColorPicker.h"
 
+#include <mmsystem.h>
 #include "AddAlarmDlg.h"
+#include "ShutdownTimeDlg.h"
 
 
 #ifdef _DEBUG
@@ -135,6 +137,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	m_timelistDlg.ShowWindow(SW_SHOW);
 
 	load_setting();
+	m_system_shutdown = _T("");
 
 	bool onTop = true;// theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
 	SetWindowPos(onTop ? &wndTopMost : &wndNoTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
@@ -328,11 +331,22 @@ void CMiniClock2Dlg::OnContextMenu(CWnd* pWnd, CPoint point)
 {
 	CMenu menu;
 	CMenu* pMenu = NULL;
+	CString str;
 
 	menu.LoadMenu(IDR_MENU_CONTEXT);
 	pMenu = (CMenu*)menu.GetSubMenu(0);
 
 	pMenu->CheckMenuItem(ID_MENU_ALWAYS_ON_TOP, is_top_most(m_hWnd) ? MF_CHECKED : MF_UNCHECKED);
+
+	if (m_system_shutdown.IsEmpty())
+	{
+		str.Format(_T("시스템 종료 시각 설정(&S)..."));
+	}
+	else
+	{
+		str.Format(_T("%s시 %s분에 자동 종료 예정. 변경..."), m_system_shutdown.Left(2), m_system_shutdown.Right(2));
+		pMenu->ModifyMenu(ID_MENU_SHUTDOWN, MF_BYCOMMAND, ID_MENU_SHUTDOWN, str);
+	}
 
 	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
 }
@@ -380,6 +394,11 @@ void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)
 void CMiniClock2Dlg::rebuild_image()
 {
 	CString str = get_cur_datetime_str(1, true);
+
+	CTime t = CTime::GetCurrentTime();
+
+	if (m_system_shutdown == get_cur_datetime_str(1, false, _T(""), true, false))
+		SystemShutdownNT(SHUTDOWN_POWEROFF);
 
 	m_para.clear();
 	CSCParagraph::build_paragraph_str(str, m_para, &m_text_prop);
@@ -485,7 +504,32 @@ void CMiniClock2Dlg::OnMenuAlwaysOnTop()
 
 void CMiniClock2Dlg::OnMenuShutdown()
 {
-	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	CShutdownTimeDlg dlg;
+
+	if (dlg.DoModal() == IDCANCEL)
+		return;
+
+	if (dlg.m_shutdown_time == "")
+	{
+		m_system_shutdown = dlg.m_shutdown_time;
+		::PlaySound(MAKEINTRESOURCE(IDR_WAVE_DING_MID), GetModuleHandle(NULL), SND_RESOURCE | SND_ASYNC);
+		//XMessageBox(NULL, _T("시스템 종료 예약이 해제되었습니다."), _T("시스템 종료 시각 해제"), 1, MB_NOSOUND);
+		return;
+	}
+
+	if (dlg.m_shutdown_time.GetLength() != 4 || dlg.m_shutdown_time < _T("0000") || dlg.m_shutdown_time > _T("2359"))
+	{
+		AfxMessageBox(_T("올바르지 않은 시간 설정입니다.\n\nex)밤 11시 50분에 종료하려면\"2350\"을 입력하세요\n\n빈 문자열을 입력하면 자동 종료 기능이 해제됩니다."));
+		OnMenuShutdown();
+		return;
+	}
+
+	m_system_shutdown = dlg.m_shutdown_time;
+
+	CString str;
+	str.Format(_T("%s시 %s분에 시스템이 자동 종료됩니다."), m_system_shutdown.Left(2), m_system_shutdown.Right(2));
+	::PlaySound(MAKEINTRESOURCE(IDR_WAVE_DING_MID), GetModuleHandle(NULL), SND_RESOURCE | SND_ASYNC);
+	//XMessageBox(NULL, str, _T("시스템 종료 시각"), 1, MB_NOSOUND);
 }
 
 void CMiniClock2Dlg::OnMenuRestartExplorerTaskbarx()
