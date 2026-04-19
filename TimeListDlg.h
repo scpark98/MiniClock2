@@ -123,4 +123,5 @@ public:
 	afx_msg void OnMenuFloating();
 	afx_msg void OnMenuCopyToClipboard();
 	afx_msg void OnMenuLockListitem();
+	afx_msg void OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult);
 };

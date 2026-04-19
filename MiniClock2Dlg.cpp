@@ -139,6 +139,14 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	m_sys_tray.CreateIcon(hIcon, 1, _T("MiniClock2"));	//트레이 아이콘컖E툴팁 설정
 	m_sys_tray.ShowIcon(1);								//아이콘 표시
 
+	//HideTaskBar(false);
+
+	//작업표시줄에서 숨긴다. 단, Alt+Tab해도 나타나지 않으므로
+	//trayicon을 이용해서 창을 표시하거나 숨긴다.
+	ModifyStyleEx(WS_EX_APPWINDOW, WS_EX_TOOLWINDOW, 0);
+	//출처: http://greenbblog.tistory.com/entry/wtl-dialog-hide-taskbar [그린마톩E[시햨E]]
+
+
 	m_timelistDlg.Create(IDD_TIME_LIST, this);
 	m_timelistDlg.ShowWindow(SW_SHOW);
 
@@ -174,9 +182,11 @@ void CMiniClock2Dlg::load_setting()
 	_tcscpy_s(m_text_prop.name, _T("DSEG7 Classic"));
 	m_text_prop.style = Gdiplus::FontStyleBold;
 	m_text_prop.size = 13;
-	m_text_prop.thickness = 2.0f;
+	m_text_prop.shadow_depth = 1.0f;
+	m_text_prop.thickness = 1.6f;
 	m_text_prop.cr_text = Gdiplus::Color(255, 132, 125, 91);
-	m_text_prop.cr_stroke = Gdiplus::Color(255, 24, 24, 24);
+	m_text_prop.cr_stroke = Gdiplus::Color(255, 0, 0, 0);
+	m_text_prop.cr_shadow = Gdiplus::Color(255, 64, 64, 64);
 	m_text_prop.cr_back = Gdiplus::Color(1, 0, 0, 0);
 
 

@@ -58,6 +58,7 @@ BEGIN_MESSAGE_MAP(CTimeListDlg, CDialogEx)
 	ON_COMMAND(ID_MENU_COPY_TO_CLIPBOARD, &CTimeListDlg::OnMenuCopyToClipboard)
 	ON_COMMAND(ID_MENU_LOCK_LISTITEM, &CTimeListDlg::OnMenuLockListitem)
 	ON_REGISTERED_MESSAGE(Message_CSCShapeDlg, &CTimeListDlg::on_message_CSCShapeDlg)
+	ON_NOTIFY(LVN_ENDLABELEDIT, IDC_LIST_TIME, &CTimeListDlg::OnLvnEndLabelEditListTime)
 END_MESSAGE_MAP()
 
 
@@ -106,6 +107,7 @@ BOOL CTimeListDlg::OnInitDialog()
 	RestoreWindowPosition(&theApp, this, _T("TimeListDlg"));// , false, true, true);
 
 	m_msgbox.create(this, _T("MiniClock2"), IDR_MAINFRAME);
+	m_msgbox.set_color_theme(CSCColorTheme::color_theme_dark_gray);
 
 	load_timelist();
 
@@ -824,4 +826,56 @@ void CTimeListDlg::on_menu_favorites(UINT nID)
 	get_token_str(str, token, _T("|"));
 
 	add(token[0], token[1], false, (token.size() == 3 ? _ttoi(token[2]) : false));
+}
+
+void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
+{
+	NMLVDISPINFO* pDispInfo = reinterpret_cast<NMLVDISPINFO*>(pNMHDR);
+	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	int item = m_list.get_recent_edit_item();
+	int sub_item = m_list.get_recent_edit_subitem();
+	CString	text = m_list.get_text(item, sub_item);
+	TRACE(_T("edit. %d, %d\n"), item, sub_item);
+
+	CAlarmItem* data = (CAlarmItem*)m_list.GetItemData(item);
+
+	if (sub_item == col_title)
+	{
+		_tcscpy_s(data->title, _countof(data->title), text);
+	}
+	else if (sub_item == col_start)
+	{
+		if (text.GetLength() == 4 && IsNatural(text))
+		{
+			text.Insert(2, _T(":"));
+			text += _T(":00");
+		}
+
+		data->start = get_CTime_from_datetime_str(_T(""), text);
+		CTime tEnd = data->start + data->ts_duration;
+		m_list.set_text(item, col_start, get_time_str(data->start));
+		m_list.set_text(item, col_end, get_time_str(tEnd));
+	}
+	else if (sub_item == col_duration)
+	{
+		data->ts_duration = CTimeSpan(0, 0, _ttoi(text), 0);
+		CTime tEnd = data->start + data->ts_duration;
+		m_list.set_text(item, col_duration, get_time_str(data->ts_duration));
+		m_list.set_text(item, col_end, get_time_str(tEnd));
+	}
+	else if (sub_item == col_end)
+	{
+		if (text.GetLength() == 4 && IsNatural(text))
+		{
+			text.Insert(2, _T(":"));
+			text += _T(":00");
+		}
+		CTime tEnd = get_CTime_from_datetime_str(_T(""), text);
+		data->ts_duration = tEnd - data->start;
+		m_list.set_text(item, col_duration, get_time_str(data->ts_duration));
+		m_list.set_text(item, col_end, get_time_str(tEnd));
+	}
+
+
+	*pResult = 0;
 }
