@@ -151,6 +151,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	m_timelistDlg.ShowWindow(SW_SHOW);
 
 	m_msgbox.create(this, _T("MiniClock2"), IDR_MAINFRAME);
+	m_msgbox.set_color_theme(CSCColorTheme::color_theme_dark_gray);
 
 	load_setting();
 	m_system_shutdown = _T("");
@@ -440,8 +441,11 @@ void CMiniClock2Dlg::rebuild_image()
 
 	CTime t = CTime::GetCurrentTime();
 
-	if (m_system_shutdown == get_cur_datetime_str(1, false, _T(""), true, false))
+	CString cur_time;
+	cur_time.Format(_T("%02d%02d%02d"), t.GetHour(), t.GetMinute(), t.GetSecond());
+	if (m_system_shutdown + _T("00") == cur_time)
 		SystemShutdownNT(SHUTDOWN_POWEROFF);
+		//m_msgbox.DoModal(_T("시스템이 자동으로 종료됩니다."), MB_OK, 3);
 
 	m_para.clear();
 	CSCParagraph::build_paragraph_str(str, m_para, &m_text_prop);
