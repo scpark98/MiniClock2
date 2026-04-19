@@ -95,7 +95,8 @@ BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	ON_WM_LBUTTONDBLCLK()
 	ON_WM_SETFOCUS()
 	ON_WM_KILLFOCUS()
-	ON_WM_NCHITTEST()
+	//ON_WM_NCHITTEST()
+	ON_MESSAGE(WM_SYSTRAYMSG, &CMiniClock2Dlg::on_message_CSysTrayIcon)
 END_MESSAGE_MAP()
 
 
@@ -133,8 +134,15 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
 	SetWindowText(_T("MiniClock2"));
 
+	m_sys_tray.SetParent(m_hWnd);							//마퓖E?이벤트를 처리할 parent hwnd 설정
+	HICON hIcon = ::AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	m_sys_tray.CreateIcon(hIcon, 1, _T("MiniClock2"));	//트레이 아이콘컖E툴팁 설정
+	m_sys_tray.ShowIcon(1);								//아이콘 표시
+
 	m_timelistDlg.Create(IDD_TIME_LIST, this);
 	m_timelistDlg.ShowWindow(SW_SHOW);
+
+	m_msgbox.create(this, _T("MiniClock2"), IDR_MAINFRAME);
 
 	load_setting();
 	m_system_shutdown = _T("");
@@ -144,17 +152,28 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 
 	RestoreWindowPosition(&theApp, this);
 
+	m_temperature.set_text(this, _T("GPU -% -℃"), 13,
+		Gdiplus::FontStyle::FontStyleBold, 1, 1.6f, _T("DSEG7 Classic"),
+		Gdiplus::Color(212, 196, 166, 138),
+		Gdiplus::Color(255, 0, 0, 0),
+		Gdiplus::Color(255, 64, 64, 64),
+		Gdiplus::Color(1, 1, 1, 1));		//완전 투명한 배경처럼 보이면서 드래그하여 이동하기도 편하다.
+	RestoreWindowPosition(&theApp, &m_temperature, _T("m_temperature"), false, true, false);
+	m_temperature.ShowWindow(SW_SHOW);
+
 	SetTimer(timer_convert_ime, 1000, NULL);
 	SetTimer(timer_time, 1000, NULL);
+	SetTimer(timer_gpu_temperature, 500, NULL);
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
 
 void CMiniClock2Dlg::load_setting()
 {
+	//최초 초기값 설정. 이후에 저장된 설정이 있으면 그것으로 덮어쓴다.
 	_tcscpy_s(m_text_prop.name, _T("DSEG7 Classic"));
 	m_text_prop.style = Gdiplus::FontStyleBold;
-	m_text_prop.size = 14;
+	m_text_prop.size = 13;
 	m_text_prop.thickness = 2.0f;
 	m_text_prop.cr_text = Gdiplus::Color(255, 132, 125, 91);
 	m_text_prop.cr_stroke = Gdiplus::Color(255, 24, 24, 24);
@@ -252,6 +271,8 @@ void CMiniClock2Dlg::OnBnClickedOk()
 void CMiniClock2Dlg::OnBnClickedCancel()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+	SaveWindowPosition(&theApp, &m_temperature, _T("m_temperature"));
+
 	save_setting();
 
 	CDialogEx::OnCancel();
@@ -361,8 +382,8 @@ BOOL CMiniClock2Dlg::OnEraseBkgnd(CDC* pDC)
 void CMiniClock2Dlg::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-	//if (IsShiftPressed())
-	//	DefWindowProc(WM_NCLBUTTONDOWN, HTCAPTION, MAKEWORD(point.x, point.y));
+	if (IsShiftPressed())
+		DefWindowProc(WM_NCLBUTTONDOWN, HTCAPTION, MAKEWORD(point.x, point.y));
 
 	CDialogEx::OnLButtonDown(nFlags, point);
 }
@@ -380,6 +401,18 @@ void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)
 	if (nIDEvent == timer_time)
 	{
 		rebuild_image();
+	}
+	else if (nIDEvent == timer_gpu_temperature)
+	{
+		KillTimer(timer_gpu_temperature);
+		CString str;
+		str.Format(_T("%d%% %d℃"), m_nvidia.get_usage(0), m_nvidia.get_temperature(0));
+		CSCShapeDlgTextSetting* setting = m_temperature.get_text_setting();
+		setting->text = str;
+		m_temperature.set_text(setting);
+
+		SetTimer(timer_gpu_temperature, 5000, NULL);
+		Invalidate(false);
 	}
 	else if (nIDEvent == timer_convert_ime)
 	{
@@ -447,11 +480,11 @@ void CMiniClock2Dlg::OnMenuColor()
 BOOL CMiniClock2Dlg::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-	//if (IsShiftPressed())
-	//{
-	//	m_text_prop.size += (zDelta > 0 ? 1 : -1);
-	//	rebuild_image();
-	//}
+	if (IsShiftPressed())
+	{
+		m_text_prop.size += (zDelta > 0 ? 1 : -1);
+		rebuild_image();
+	}
 
 	return CDialogEx::OnMouseWheel(nFlags, zDelta, pt);
 }
@@ -471,13 +504,6 @@ void CMiniClock2Dlg::OnMenuResetTimeListPos()
 
 void CMiniClock2Dlg::OnMenuAlarmAfterMinutes()
 {
-	// 리스트 컨트롤까지 직접 비활성화
-	//if (m_timelistDlg.m_hWnd)
-	//{
-	//	m_timelistDlg.EnableWindow(FALSE);
-	//	m_timelistDlg.m_list.EnableWindow(FALSE);  // ← 핵심
-	//}
-
 	CAddAlarmDlg dlg;
 	if (dlg.DoModal() == IDCANCEL)
 		return;
@@ -487,7 +513,25 @@ void CMiniClock2Dlg::OnMenuAlarmAfterMinutes()
 
 void CMiniClock2Dlg::OnMenuFont()
 {
-	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	LOGFONT lf;
+	memset(&lf, 0, sizeof(lf));
+	_tcscpy_s(lf.lfFaceName, m_text_prop.name);
+	lf.lfWeight = (m_text_prop.style == Gdiplus::FontStyleBold ? FW_BOLD : FW_NORMAL);
+	lf.lfHeight = get_pixel_size_from_font_size(m_hWnd, m_text_prop.size);
+
+	CFontDialog dlg(&lf, CF_SCREENFONTS | CF_WYSIWYG | CF_INITTOLOGFONTSTRUCT);
+	dlg.m_cf.rgbColors = m_text_prop.cr_text.ToCOLORREF();
+
+	if (dlg.DoModal() == IDCANCEL)
+		return;
+
+	dlg.GetCurrentFont(&lf);
+	_tcscpy_s(m_text_prop.name, lf.lfFaceName);
+	int size = dlg.GetSize();
+	m_text_prop.size = get_font_size_from_pixel_size(m_hWnd, lf.lfHeight);
+	m_text_prop.style = (dlg.IsBold() ? Gdiplus::FontStyleBold : 0) | (dlg.IsItalic() ? Gdiplus::FontStyleItalic : 0);
+
+	save_setting();
 }
 
 void CMiniClock2Dlg::OnMenuAlwaysOnTop()
@@ -513,13 +557,13 @@ void CMiniClock2Dlg::OnMenuShutdown()
 	{
 		m_system_shutdown = dlg.m_shutdown_time;
 		::PlaySound(MAKEINTRESOURCE(IDR_WAVE_DING_MID), GetModuleHandle(NULL), SND_RESOURCE | SND_ASYNC);
-		//XMessageBox(NULL, _T("시스템 종료 예약이 해제되었습니다."), _T("시스템 종료 시각 해제"), 1, MB_NOSOUND);
+		m_msgbox.DoModal(_T("시스템 종료 예약이 해제되었습니다."), MB_OK, 3);
 		return;
 	}
 
 	if (dlg.m_shutdown_time.GetLength() != 4 || dlg.m_shutdown_time < _T("0000") || dlg.m_shutdown_time > _T("2359"))
 	{
-		AfxMessageBox(_T("올바르지 않은 시간 설정입니다.\n\nex)밤 11시 50분에 종료하려면\"2350\"을 입력하세요\n\n빈 문자열을 입력하면 자동 종료 기능이 해제됩니다."));
+		m_msgbox.DoModal(_T("올바르지 않은 시간 설정입니다.\n\nex)밤 11시 50분에 종료하려면\"2350\"을 입력하세요\n\n빈 문자열을 입력하면 자동 종료 기능이 해제됩니다."));
 		OnMenuShutdown();
 		return;
 	}
@@ -529,12 +573,14 @@ void CMiniClock2Dlg::OnMenuShutdown()
 	CString str;
 	str.Format(_T("%s시 %s분에 시스템이 자동 종료됩니다."), m_system_shutdown.Left(2), m_system_shutdown.Right(2));
 	::PlaySound(MAKEINTRESOURCE(IDR_WAVE_DING_MID), GetModuleHandle(NULL), SND_RESOURCE | SND_ASYNC);
-	//XMessageBox(NULL, str, _T("시스템 종료 시각"), 1, MB_NOSOUND);
+	m_msgbox.DoModal(str, MB_OK, 3);
 }
 
 void CMiniClock2Dlg::OnMenuRestartExplorerTaskbarx()
 {
-	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	run_process(_T("taskkill /f /im explorer.exe"), true);
+	Wait(500);
+	run_process(_T("C:\\Windows\\explorer.exe"), false);
 }
 
 void CMiniClock2Dlg::OnMenuClose()
@@ -544,9 +590,6 @@ void CMiniClock2Dlg::OnMenuClose()
 
 void CMiniClock2Dlg::OnActivateApp(BOOL bActive, DWORD dwThreadID)
 {
-	//CDialogEx::OnActivateApp(bActive, dwThreadID);
-	//return;
-
 	if (!m_timelistDlg.m_hWnd)
 		return;
 
@@ -594,34 +637,57 @@ void CMiniClock2Dlg::OnKillFocus(CWnd* pNewWnd)
 
 BOOL CMiniClock2Dlg::PreTranslateMessage(MSG* pMsg)
 {
-	if (pMsg->hwnd != m_hWnd)
-		return FALSE;  // 다른 창 메시지는 건드리지 않음
-
-	switch (pMsg->message)
-	{
-	case WM_LBUTTONDBLCLK:
-		OnMenuAlarmAfterMinutes();
-		return TRUE;
-	case WM_KEYDOWN:
-		if (pMsg->wParam == VK_ESCAPE) { OnMenuClose(); return TRUE; }
-		if (pMsg->wParam == VK_RETURN) { OnMenuAlarmAfterMinutes(); return TRUE; }
-		break;
-	case WM_MOUSEWHEEL:
-		if (IsShiftPressed()) {
-			m_text_prop.size += GET_WHEEL_DELTA_WPARAM(pMsg->wParam) > 0 ? 1 : -1;
-			rebuild_image();
-			return TRUE;
-		}
-		break;
-	}
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
 
 LRESULT CMiniClock2Dlg::OnNcHitTest(CPoint point)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-	if (IsShiftPressed())
-		return HTCAPTION;  // 시스템이 드래그를 직접 처리
 
 	return CDialogEx::OnNcHitTest(point);
+}
+
+LRESULT CMiniClock2Dlg::on_message_CSysTrayIcon(WPARAM wParam, LPARAM lParam)
+{
+	switch (lParam)
+	{
+		case WM_LBUTTONUP:
+		case WM_LBUTTONDBLCLK:
+		if (IsIconic())
+		{
+			m_temperature.ShowWindow(SW_SHOW);
+			ShowWindow(SW_SHOW);
+			ShowWindow(SW_RESTORE);
+			SetForegroundWindow();
+			SetActiveWindow();
+		}
+		else
+		{
+			m_temperature.ShowWindow(SW_HIDE);
+			ShowWindow(SW_MINIMIZE);
+			ShowWindow(SW_HIDE);
+		}
+		break;
+		case WM_RBUTTONUP:
+		{
+			CMenu	menu;
+			menu.LoadMenu(IDR_MENU_CONTEXT);
+
+			CMenu* pMenu = menu.GetSubMenu(0);
+
+			bool onTop = theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
+			pMenu->CheckMenuItem(ID_MENU_ALWAYS_ON_TOP, onTop ? MF_CHECKED : MF_UNCHECKED);
+
+			CPoint pt;
+			GetCursorPos(&pt);
+
+			CWnd* pMenuEventHandler = ::AfxGetMainWnd();
+			//아래 코드를 추가해야 트레이 아이콘 팝업메뉴에서 단축키가 동작한다.
+			pMenuEventHandler->SetForegroundWindow();
+			pMenu->TrackPopupMenu(TPM_LEFTALIGN, pt.x, pt.y, pMenuEventHandler);
+			break;
+		}
+	}
+
+	return 1;
 }

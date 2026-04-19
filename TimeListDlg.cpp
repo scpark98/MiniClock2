@@ -41,6 +41,7 @@ BEGIN_MESSAGE_MAP(CTimeListDlg, CDialogEx)
 	ON_WM_DESTROY()
 	ON_WM_LBUTTONDOWN()
 	ON_WM_CONTEXTMENU()
+	ON_COMMAND_RANGE(menu_favorite_start, menu_favorite_start + 100, on_menu_favorites)
 	ON_WM_GETMINMAXINFO()
 	ON_WM_PAINT()
 	//ON_WM_NCPAINT()
@@ -95,7 +96,7 @@ BOOL CTimeListDlg::OnInitDialog()
 	m_check_autohide.set_font_weight(FW_BOLD);
 	m_check_autohide.SetCheck(theApp.GetProfileInt(_T("TimeListDlg"), _T("auto hide"), false));
 
-	m_floating.set_text(this, _T(" "), 13.9, Gdiplus::FontStyle::FontStyleBold, 1, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
+	m_floating.set_text(this, _T(" "), 13, Gdiplus::FontStyle::FontStyleBold, 1, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
 		Gdiplus::Color(255, 128, 128, 192),
 		Gdiplus::Color(255, 0, 0, 0),
 		Gdiplus::Color(255, 64, 64, 64),
@@ -197,6 +198,8 @@ void CTimeListDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 	int count = theApp.GetProfileInt(_T("favorite"), _T("count"), 0);
 	if (count > 0)
 	{
+		pMenu->AppendMenuW(MF_SEPARATOR);
+
 		CString str;
 		CString caption;
 
@@ -239,6 +242,8 @@ void CTimeListDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 		pMenu->EnableMenuItem(ID_MENU_FLOATING, MF_DISABLED);
 		pMenu->EnableMenuItem(ID_MENU_RESET_START_TIME, MF_DISABLED);
 		pMenu->EnableMenuItem(ID_MENU_LOCK_LISTITEM, MF_DISABLED);
+		pMenu->EnableMenuItem(ID_MENU_COPY_TO_CLIPBOARD, MF_DISABLED);
+		pMenu->EnableMenuItem(ID_MENU_DELETE, MF_DISABLED);
 	}
 
 	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
@@ -597,7 +602,7 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 		has_floating = has_floating || item->is_floating;
 		//trace(item->start);
 		//trace(item->ts_duration);
-		TRACE(_T("start: %s, duration: %s\n"), get_time_str(item->start), get_time_str(item->ts_duration));
+		//TRACE(_T("start: %s, duration: %s\n"), get_time_str(item->start), get_time_str(item->ts_duration));
 		CTime end = item->start + item->ts_duration;
 		CTimeSpan remain = end - t;
 		LONGLONG remain_seconds = remain.GetTotalSeconds();
@@ -736,7 +741,29 @@ void CTimeListDlg::OnMenuFloating()
 
 void CTimeListDlg::OnMenuCopyToClipboard()
 {
-	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	if (m_list.size() == 0)
+		return;
+
+	std::deque<CString> dq;
+	m_list.get_selected_items(&dq);
+
+	if (dq.empty())
+	{
+		for (int i = 0; i < m_list.size(); i++)
+			dq.push_back(m_list.get_line_text(i, 0, -1));
+	}
+
+	CString str;
+
+	str = m_list.get_header_text() + _T("\r\n");
+
+	for (const auto& item : dq)
+	{
+		str += item + _T("\r\n");
+	}
+
+	copy_to_clipboard(m_hWnd, str);
+	MessageBeep(MB_OK);
 }
 
 void CTimeListDlg::OnMenuLockListitem()
@@ -751,18 +778,24 @@ void CTimeListDlg::OnMenuLockListitem()
 
 void CTimeListDlg::OnMenuDelete()
 {
-	int selected = m_list.get_selected_index();
-	if (selected < 0)
-		return;
+	std::deque<int> selected;
+	m_list.get_selected_items(&selected);
 
-	CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected);
+	//중간 항목이 삭제되어도 인덱스가 유지되도록 뒤에서부터 삭제한다.
+	for (int i = selected.size() - 1; i >= 0; i--)
+	{
+		CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected[i]);
 
-	if (item->is_floating)
-		m_floating.ShowWindow(SW_HIDE);
+		if (item->is_locked)
+			continue;
 
-	delete item;
+		if (item->is_floating)
+			m_floating.ShowWindow(SW_HIDE);
 
-	m_list.delete_item(selected);
+		delete item;
+		m_list.delete_item(selected[i]);
+	}
+
 	save_timelist();
 }
 
@@ -777,4 +810,18 @@ LRESULT CTimeListDlg::on_message_CSCShapeDlg(WPARAM wParam, LPARAM lParam)
 		}
 	}
 	return 0;
+}
+
+void CTimeListDlg::on_menu_favorites(UINT nID)
+{
+	int index = nID - menu_favorite_start;
+
+	CString str = theApp.GetProfileString(_T("favorite"), i2S(index, false, true, 3), _T(""));
+	if (str.IsEmpty())
+		return;
+
+	std::deque<CString> token;
+	get_token_str(str, token, _T("|"));
+
+	add(token[0], token[1], false, (token.size() == 3 ? _ttoi(token[2]) : false));
 }

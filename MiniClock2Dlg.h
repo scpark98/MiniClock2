@@ -5,6 +5,10 @@
 #pragma once
 
 #include "Common/SCGdiplusBitmap.h"
+#include "Common/messagebox/CSCMessageBox/SCMessageBox.h"
+#include "Common/system/SysTrayIcon/SysTrayIcon.h"
+#include "Common/device/nvidia/nvidia_info.h"
+
 #include "TimeListDlg.h"
 
 // CMiniClock2Dlg 대화 상자
@@ -32,8 +36,16 @@ protected:
 		timer_gpu_temperature,
 	};
 
+	CSysTrayIcon		m_sys_tray;
+	LRESULT				on_message_CSysTrayIcon(WPARAM, LPARAM);
+
+	CNVidiaInfo			m_nvidia; 
+	CSCShapeDlg			m_temperature;
+
 	std::deque<std::deque<CSCParagraph>> m_para;
 	CSCTextProperty		m_text_prop;
+
+	CSCMessageBox		m_msgbox;
 
 	bool				m_first_run = true;
 
