@@ -105,6 +105,9 @@
     <ClInclude Include="..\Common\device\nvidia\nvidia_info.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\device\gpu_usage.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MiniClock2.cpp">
@@ -180,6 +183,9 @@
       <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\device\nvidia\nvidia_info.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\device\gpu_usage.cpp">
       <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>

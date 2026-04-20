@@ -374,12 +374,16 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 		CTime tEnd = get_CTime_from_datetime_str(_T(""), sEnd);
 		ts_duration = tEnd - tStart;
 
+		//지난 시간이라도 즐겨찾기 등록일 경우는 등록되어야 하므로 여기서 자르면 안된다. 일단 추가한다.
+		//어짜피 리스트에서 걸러진다.
+		/*
 		if (ts_duration.GetTotalSeconds() < 0)
 		{
 			str.Format(_T("%s는 이미 지난 시각입니다."), sEnd);
 			m_msgbox.DoModal(str, MB_OK, 3);
 			return;
 		}
+		*/
 
 		//if (ts_duration.GetTotalMinutes() > 60)
 		//	duration.Format(_T("%dh %dm"), ts.GetHours(), ts.GetMinutes());

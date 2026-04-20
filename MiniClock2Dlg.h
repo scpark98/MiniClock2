@@ -8,6 +8,7 @@
 #include "Common/messagebox/CSCMessageBox/SCMessageBox.h"
 #include "Common/system/SysTrayIcon/SysTrayIcon.h"
 #include "Common/device/nvidia/nvidia_info.h"
+#include "Common/device/gpu_usage.h"
 
 #include "TimeListDlg.h"
 
@@ -39,7 +40,8 @@ protected:
 	CSysTrayIcon		m_sys_tray;
 	LRESULT				on_message_CSysTrayIcon(WPARAM, LPARAM);
 
-	CNVidiaInfo			m_nvidia; 
+	CNVidiaInfo			m_nvidia;
+	CGpuUsage			m_gpu_usage;
 	CSCShapeDlg			m_temperature;
 
 	std::deque<std::deque<CSCParagraph>> m_para;

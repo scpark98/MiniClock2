@@ -282,6 +282,11 @@ void CMiniClock2Dlg::OnBnClickedOk()
 void CMiniClock2Dlg::OnBnClickedCancel()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
+
+	//OKCANCEL로 하지 않은 이유는 띵~ 소리가 난다.
+	if (AfxMessageBox(_T("MiniClock2를 종료합니다"), MB_YESNO) == IDNO)
+		return;
+
 	SaveWindowPosition(&theApp, &m_temperature, _T("m_temperature"));
 
 	save_setting();
@@ -418,7 +423,7 @@ void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)
 	{
 		KillTimer(timer_gpu_temperature);
 		CString str;
-		str.Format(_T("%d%% %d℃"), m_nvidia.get_usage(0), m_nvidia.get_temperature(0));
+		str.Format(_T("%d%% %d℃"), m_gpu_usage.get_usage(), m_nvidia.get_temperature(0));
 		CSCShapeDlgTextSetting* setting = m_temperature.get_text_setting();
 		setting->text = str;
 		m_temperature.set_text(setting);
