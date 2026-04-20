@@ -101,4 +101,5 @@ public:
 	afx_msg void OnKillFocus(CWnd* pNewWnd);
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg LRESULT OnNcHitTest(CPoint point);
+	afx_msg void OnMenuNvidiaInfo();
 };

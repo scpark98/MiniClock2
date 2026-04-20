@@ -149,6 +149,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 
 
 	m_timelistDlg.Create(IDD_TIME_LIST, this);
+	//m_timelistDlg.ShowWindow(SW_SHOW);
 
 	m_msgbox.create(this, _T("MiniClock2"), IDR_MAINFRAME);
 	m_msgbox.set_color_theme(CSCColorTheme::color_theme_dark_gray);
