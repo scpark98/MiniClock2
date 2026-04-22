@@ -68,6 +68,9 @@ void CMiniClock2Dlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 }
 
+UINT CMiniClock2Dlg::s_msg_taskbar_created =
+	::RegisterWindowMessage(_T("TaskbarCreated"));
+
 BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
@@ -98,6 +101,7 @@ BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	//ON_WM_NCHITTEST()
 	ON_MESSAGE(WM_SYSTRAYMSG, &CMiniClock2Dlg::on_message_CSysTrayIcon)
 	ON_COMMAND(ID_MENU_NVIDIA_INFO, &CMiniClock2Dlg::OnMenuNvidiaInfo)
+	ON_REGISTERED_MESSAGE(s_msg_taskbar_created, &CMiniClock2Dlg::OnTaskbarCreated)
 END_MESSAGE_MAP()
 
 
@@ -156,7 +160,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	load_setting();
 	m_system_shutdown = _T("");
 
-	bool onTop = true;// theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
+	bool onTop = theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
 	SetWindowPos(onTop ? &wndTopMost : &wndNoTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 
 	RestoreWindowPosition(&theApp, this);
@@ -169,6 +173,8 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 		Gdiplus::Color(1, 1, 1, 1));		//완전 투명한 배경처럼 보이면서 드래그하여 이동하기도 편하다.
 	RestoreWindowPosition(&theApp, &m_temperature, _T("m_temperature"), false, true, false);
 	m_temperature.ShowWindow(theApp.GetProfileInt(_T("setting"), _T("nvidia info"), true) ? SW_SHOW : SW_HIDE);
+
+	rebuild_image();
 
 	SetTimer(timer_convert_ime, 1000, NULL);
 	SetTimer(timer_time, 1000, NULL);
@@ -719,4 +725,29 @@ void CMiniClock2Dlg::OnMenuNvidiaInfo()
 	theApp.WriteProfileInt(_T("setting"), _T("nvidia info"), show_nvidia_info);
 
 	m_temperature.ShowWindow(show_nvidia_info ? SW_SHOW : SW_HIDE);
+}
+
+// Shell_TrayWnd 가 (재)생성될 때 전체 top-level 창에 브로드캐스트되는 메시지.
+// 시작프로그램으로 부팅 직후 실행된 경우 셸이 늦게 올라오는 시점에 수신되어
+// OnInitDialog 에서 일부 실패했던 초기화를 여기서 복구한다.
+// 이미 부팅된 상태에서 수동 실행하면 이 메시지는 오지 않으므로 부작용 없음.
+LRESULT CMiniClock2Dlg::OnTaskbarCreated(WPARAM, LPARAM)
+{
+	// 내부 리스트에 이미 ID 1 이 등록돼 있으면 CreateIcon 이 ASSERT 로 걸린다.
+	// 먼저 DeleteIcon 으로 리스트와 Shell_NotifyIcon 모두 정리한 뒤 재등록.
+	m_sys_tray.DeleteIcon(1);
+
+	HICON hIcon = ::AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	m_sys_tray.CreateIcon(hIcon, 1, _T("MiniClock2"));
+	m_sys_tray.ShowIcon(1);
+
+	bool onTop = theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
+	SetWindowPos(onTop ? &wndTopMost : &wndNoTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
+	RestoreWindowPosition(&theApp, this);
+	RestoreWindowPosition(&theApp, &m_temperature, _T("m_temperature"), false, true, false);
+
+	rebuild_image();
+	Invalidate(false);
+	return 0;
 }

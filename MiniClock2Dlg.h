@@ -104,4 +104,9 @@ public:
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg LRESULT OnNcHitTest(CPoint point);
 	afx_msg void OnMenuNvidiaInfo();
+
+	// 시작프로그램으로 실행 시 Shell_TrayWnd 가 뒤늦게 올라오는 경우 복구.
+	// Explorer 크래시 후 재시작에도 동일하게 사용.
+	static UINT s_msg_taskbar_created;
+	afx_msg LRESULT OnTaskbarCreated(WPARAM wParam, LPARAM lParam);
 };
