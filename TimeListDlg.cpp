@@ -108,6 +108,7 @@ BOOL CTimeListDlg::OnInitDialog()
 
 	m_msgbox.create(this, _T("MiniClock2"), IDR_MAINFRAME);
 	m_msgbox.set_color_theme(CSCColorTheme::color_theme_dark_gray);
+	m_msgbox.set_show_on_parent_center(false);
 
 	load_timelist();
 
@@ -675,6 +676,12 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 				m_list.set_text_color(i, -1, listctrlex_unused_color);
 			}
 		}
+	}
+
+	int day_of_week = t.GetDayOfWeek();
+	if ((day_of_week == 2 || day_of_week == 6) && (t.GetHour() == 8 && t.GetMinute() == 55 && t.GetSecond() == 0))
+	{
+		m_msgbox.DoModal(_T("특정 요일 및 시각 알림!"));
 	}
 
 	m_floating.ShowWindow(has_floating ? SW_SHOW : SW_HIDE);

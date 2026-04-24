@@ -156,6 +156,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 
 	m_msgbox.create(this, _T("MiniClock2"), IDR_MAINFRAME);
 	m_msgbox.set_color_theme(CSCColorTheme::color_theme_dark_gray);
+	m_msgbox.set_show_on_parent_center(false);
 
 	load_setting();
 	m_system_shutdown = _T("");
