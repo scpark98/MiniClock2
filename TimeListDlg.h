@@ -48,6 +48,7 @@ public:
 
 	void			add(CString title, CString duration, bool add_favorite = false, bool floating = false, bool save_list = true);
 	LRESULT			on_message_CSCShapeDlg(WPARAM wParam, LPARAM lParam);
+	void			set_alpha(int alpha);
 
 protected:
 	CSCMessageBox	m_msgbox;
@@ -79,9 +80,6 @@ protected:
 
 	//1:13(=1h 13m), 1d 20m(=1일 20분) 등의 문자열을 총 minutes로 변환한다.
 	int				get_minutes_from_duration_string(CString& duration);
-
-	//get total minutes from day hour minutes. ex) 1d 2h 3m
-	int				get_total_minutes_from_dhm(CString dhm_time);
 
 	CSCShapeDlg		m_floating;
 

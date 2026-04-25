@@ -277,7 +277,34 @@ void CMiniClock2Dlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)
 {
 	CDialogEx::OnWindowPosChanged(lpwndpos);
 
-	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
+	// 시스템 종료/세션 엔드 중에는 창이 숨겨지거나 phantom display 로 튕겨질 수 있다.
+	// 이때 SaveWindowPosition 이 실행되면 다음 부팅에 보이지 않는 좌표가 복원된다.
+	// 1) 숨김 이벤트 제외.
+	if (lpwndpos && (lpwndpos->flags & SWP_HIDEWINDOW))
+		return;
+
+	// 2) 창이 실제 visible monitor 위에 있는지 검증. phantom(HDMI 오디오 등) 영역이거나
+	//    어떤 모니터에도 속하지 않으면 저장하지 않는다.
+	CRect rc;
+	GetWindowRect(&rc);
+
+	if (rc.Width() <= 0 || rc.Height() <= 0)
+		return;
+
+	HMONITOR hMon = MonitorFromRect(&rc, MONITOR_DEFAULTTONULL);
+	if (hMon == NULL)
+		return;
+
+	MONITORINFO mi = { sizeof(mi) };
+	if (!GetMonitorInfo(hMon, &mi))
+		return;
+
+	// 저장된 창 좌표는 다음 부팅 시 복원에 쓰이므로 실 작업 영역에 충분히 들어오는지 확인.
+	CRect work(mi.rcWork);
+	CRect inter;
+	if (!inter.IntersectRect(rc, work) || inter.Width() < 20 || inter.Height() < 20)
+		return;
+
 	SaveWindowPosition(&theApp, this);
 }
 
@@ -311,7 +338,16 @@ void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 	POINT ptSrc = { 0, 0 };
 	POINT ptWinPos = { rc.left, rc.top };
 	SIZE sz;
-	BLENDFUNCTION stBlend = { AC_SRC_OVER, 0, m_alpha, AC_SRC_ALPHA };
+	// PotPlayer64.exe 실행 중이면 알파를 80%로 낮춰 영상 가림 최소화.
+	int alpha_eff = m_alpha;
+	if (get_process_running_count(_T("PotPlayer64.exe")) > 0)
+	{
+		alpha_eff = (int)(m_alpha * 0.2);
+	}
+	m_temperature.set_alpha(alpha_eff);
+	m_timelistDlg.set_alpha(alpha_eff);
+
+	BLENDFUNCTION stBlend = { AC_SRC_OVER, 0, (BYTE)alpha_eff, AC_SRC_ALPHA };
 
 	if (img == NULL)
 		sz = CSize(1, 1);
@@ -488,8 +524,6 @@ void CMiniClock2Dlg::rebuild_image()
 	g.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
 
 	CSCParagraph::draw_text(g, m_para);
-
-	//m_img.save(_T("D:\\MiniClock2.png"));
 
 	render(m_img);
 }

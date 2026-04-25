@@ -128,7 +128,10 @@ BOOL CTimeListDlg::PreTranslateMessage(MSG* pMsg)
 				::PostMessage(GetParent()->GetSafeHwnd(), pMsg->message, pMsg->wParam, pMsg->lParam);
 				return true;
 			case VK_DELETE:
-				OnMenuDelete();
+				if (m_list.is_in_editing())
+					return CDialogEx::PreTranslateMessage(pMsg);
+				else
+					OnMenuDelete();
 				return true;
 		}
 	}
@@ -165,6 +168,10 @@ void CTimeListDlg::OnBnClickedCancel()
 
 void CTimeListDlg::OnDestroy()
 {
+	// 안전망: 변경 시점마다 저장하지만 누락 경로가 있을 수 있으므로 종료 시 한 번 더.
+	// 아래 delete 루프가 item 들을 해제하므로 반드시 그 전에 호출.
+	save_timelist();
+
 	m_list.save_column_width(&theApp, _T("TimeListDlg\\list"));
 
 	//이미 m_floating는 파괴된 상태이므로 여기서 저장해선 안된다.
@@ -413,8 +420,19 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 	//남은 시간이 명시됐다면 sEnd를 계산해준다.
 	sDate = get_date_str(tStart);
 
-	//현재 목록이 없다면 추가되는 항목을 무조건 floating으로 설정한다.
-	if (m_list.size() == 0)
+	//기존 항목 중 floating 인 것이 없다면 추가되는 항목을 자동으로 floating 으로 설정한다.
+	//(빈 리스트도 자동 포함됨)
+	bool any_floating = false;
+	for (int i = 0; i < m_list.size(); i++)
+	{
+		auto item = (CAlarmItem*)m_list.GetItemData(i);
+		if (item && item->is_floating)
+		{
+			any_floating = true;
+			break;
+		}
+	}
+	if (!any_floating)
 		floating = true;
 
 	int index = m_list.insert_item(-1, 0, title, get_time_str(tStart), get_time_str(ts_duration.GetTotalSeconds()), sEnd, _T(""), sDate);
@@ -435,6 +453,9 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 
 	if (save_list)
 		save_timelist();
+
+	//남은 시간(col_remain) 오름차순 정렬 — 가장 가까운 알람이 위로.
+	m_list.sort(col_remain, CVtListCtrlEx::sort_ascending);
 }
 
 //1:13(=1h 13m), 1d 20m(=1일 20분) 등의 문자열을 총 minutes로 변환한다.
@@ -492,45 +513,6 @@ int	CTimeListDlg::get_minutes_from_duration_string(CString& duration)
 }
 
 //get total minutes from day hour minutes. ex) 1d 2h 3m
-int	CTimeListDlg::get_total_minutes_from_dhm(CString dhm_time)
-{
-	int minutes = 0;
-
-	//공백을 없애고 소문자로
-	//sDuration.Replace(_T(" "), _T(""));
-	dhm_time.MakeLower();
-
-	CString sub;
-	for (int i = 0; i < dhm_time.GetLength(); i++)
-	{
-		if (IsNatural(sub) && dhm_time[i] == 'd')
-		{
-			minutes += (_ttoi(sub) * 24 * 60);
-			sub.Empty();
-		}
-		else if (IsNatural(sub) && dhm_time[i] == 'h')
-		{
-			minutes += (_ttoi(sub) * 60);
-			sub.Empty();
-		}
-		else if (IsNatural(sub) && dhm_time[i] == 'm')
-		{
-			minutes += _ttoi(sub);
-			sub.Empty();
-		}
-		else if (isdigit(dhm_time[i]))
-		{
-			sub += dhm_time[i];
-		}
-		else if (dhm_time[i] == ' ')
-		{
-			continue;
-		}
-	}
-
-	return minutes;
-}
-
 void CTimeListDlg::load_timelist()
 {
 	int count = theApp.GetProfileInt(_T("TimeListDlg"), _T("count"), 0);
@@ -730,6 +712,8 @@ void CTimeListDlg::OnMenuResetStartTime()
 
 	item->start = CTime::GetCurrentTime();
 	m_list.set_text(selected, col_start, get_time_str(item->start));
+
+	save_timelist();
 }
 
 void CTimeListDlg::OnMenuFloating()
@@ -750,6 +734,8 @@ void CTimeListDlg::OnMenuFloating()
 			item->is_floating = false;
 		}
 	}
+
+	save_timelist();
 }
 
 void CTimeListDlg::OnMenuCopyToClipboard()
@@ -787,6 +773,8 @@ void CTimeListDlg::OnMenuLockListitem()
 
 	CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected);
 	item->is_locked = !item->is_locked;
+
+	save_timelist();
 }
 
 void CTimeListDlg::OnMenuDelete()
@@ -856,10 +844,22 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 	}
 	else if (sub_item == col_start)
 	{
-		if (text.GetLength() == 4 && IsNatural(text))
+		// 절대 시각 입력 해석 (HH:MM:SS):
+		//   순수 숫자 1~2자리 → 좌측 0 패딩 → HH       (예: "9"      → 09:00:00)
+		//   순수 숫자 3~4자리 → 좌측 0 패딩 → HHMM     (예: "1234"   → 12:34:00)
+		//   순수 숫자 5~6자리 → 좌측 0 패딩 → HHMMSS   (예: "123456" → 12:34:56)
+		//   콜론 형식("12:34", "12:34:56" 등)은 그대로 get_CTime_from_datetime_str 에 전달.
+		if (IsNatural(text) && text.GetLength() >= 1 && text.GetLength() <= 6)
 		{
-			text.Insert(2, _T(":"));
-			text += _T(":00");
+			int len = text.GetLength();
+			int target = (len <= 2) ? 2 : (len <= 4) ? 4 : 6;
+			while (text.GetLength() < target)
+				text = _T("0") + text;
+
+			CString hh = text.Left(2);
+			CString mm = (target >= 4) ? text.Mid(2, 2) : _T("00");
+			CString ss = (target >= 6) ? text.Mid(4, 2) : _T("00");
+			text.Format(_T("%s:%s:%s"), (LPCTSTR)hh, (LPCTSTR)mm, (LPCTSTR)ss);
 		}
 
 		data->start = get_CTime_from_datetime_str(_T(""), text);
@@ -869,24 +869,95 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 	}
 	else if (sub_item == col_duration)
 	{
-		data->ts_duration = CTimeSpan(0, 0, _ttoi(text), 0);
+		// 입력 해석 규칙:
+		//   "H:M:S" / "M:S" 콜론 형식    → 시:분:초
+		//   순수 숫자 6자리              → HHMMSS (예: "000015" → 15초)
+		//   그 외 순수 숫자              → 분 단위 (예: "15" → 15분, "115" → 115분)
+		CString t = text;
+		t.Trim();
+
+		int colon_count = 0;
+		for (int i = 0; i < t.GetLength(); ++i)
+		{
+			if (t[i] == _T(':'))
+				++colon_count;
+		}
+
+		int total_secs = 0;
+
+		if (colon_count >= 1)
+		{
+			int parts[3] = { 0, 0, 0 };
+			int n = 0;
+			int p = 0;
+			while (n < 3)
+			{
+				int c = t.Find(_T(':'), p);
+				CString seg = (c < 0) ? t.Mid(p) : t.Mid(p, c - p);
+				parts[n++] = _ttoi(seg);
+				if (c < 0)
+					break;
+				p = c + 1;
+			}
+
+			if (colon_count >= 2)
+				total_secs = parts[0] * 3600 + parts[1] * 60 + parts[2];
+			else
+				total_secs = parts[0] * 60 + parts[1];
+		}
+		else if (IsNatural(t) && t.GetLength() == 6)
+		{
+			int hh = _ttoi(t.Left(2));
+			int mm = _ttoi(t.Mid(2, 2));
+			int ss = _ttoi(t.Mid(4, 2));
+			total_secs = hh * 3600 + mm * 60 + ss;
+		}
+		else
+		{
+			total_secs = _ttoi(t) * 60;
+		}
+
+		data->ts_duration = CTimeSpan(0, 0, 0, total_secs);
 		CTime tEnd = data->start + data->ts_duration;
 		m_list.set_text(item, col_duration, get_time_str(data->ts_duration));
 		m_list.set_text(item, col_end, get_time_str(tEnd));
 	}
 	else if (sub_item == col_end)
 	{
-		if (text.GetLength() == 4 && IsNatural(text))
+		// 절대 시각 입력 해석 (col_start 와 동일 규칙).
+		if (IsNatural(text) && text.GetLength() >= 1 && text.GetLength() <= 6)
 		{
-			text.Insert(2, _T(":"));
-			text += _T(":00");
+			int len = text.GetLength();
+			int target = (len <= 2) ? 2 : (len <= 4) ? 4 : 6;
+			while (text.GetLength() < target)
+				text = _T("0") + text;
+
+			CString hh = text.Left(2);
+			CString mm = (target >= 4) ? text.Mid(2, 2) : _T("00");
+			CString ss = (target >= 6) ? text.Mid(4, 2) : _T("00");
+			text.Format(_T("%s:%s:%s"), (LPCTSTR)hh, (LPCTSTR)mm, (LPCTSTR)ss);
 		}
+
 		CTime tEnd = get_CTime_from_datetime_str(_T(""), text);
+
+		// 종료 시각이 시작 시각보다 이르면 다음 날을 의도한 것으로 보고 +1일 보정.
+		if (tEnd < data->start)
+			tEnd += CTimeSpan(1, 0, 0, 0);
+
 		data->ts_duration = tEnd - data->start;
 		m_list.set_text(item, col_duration, get_time_str(data->ts_duration));
 		m_list.set_text(item, col_end, get_time_str(tEnd));
 	}
 
+	save_timelist();
+
+	//남은 시간(col_remain) 오름차순 정렬 — 가장 가까운 알람이 위로.
+	m_list.sort(col_remain, CVtListCtrlEx::sort_ascending);
 
 	*pResult = 0;
+}
+
+void CTimeListDlg::set_alpha(int alpha)
+{
+	m_floating.set_alpha(alpha);
 }
