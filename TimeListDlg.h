@@ -54,6 +54,9 @@ protected:
 	CSCMessageBox	m_msgbox;
 	void			load_timelist();
 	void			save_timelist();
+	//모든 항목의 col_remain 텍스트를 CAlarmItem (start + duration - now) 기준으로 동기화 후
+	//남은 시각 오름차순 정렬. add/edit 직후 호출.
+	void			refresh_remain_and_sort();
 
 	enum TIMER_ID
 	{

@@ -283,7 +283,10 @@ void CTimeListDlg::init_list()
 	for (int i = col_start; i <= col_date; i++)
 		m_list.set_column_text_align(i, LVCFMT_CENTER);
 
-	m_list.set_column_data_type(col_duration, CVtListCtrlEx::column_data_type_numeric);
+	//m_list.set_column_data_type(col_duration, CVtListCtrlEx::column_data_type_numeric);
+	//남은 시각은 "HH:MM:SS" 또는 "-HH:MM:SS" 형식으로 _ttof 가 선두 시각값을 파싱.
+	//텍스트 정렬이면 "100:00:00" 이 "23:00:00" 보다 앞으로 오는 등 어긋난다.
+	//m_list.set_column_data_type(col_remain, CVtListCtrlEx::column_data_type_numeric);
 
 	m_list.set_draw_selected_border(false);
 }
@@ -454,8 +457,8 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 	if (save_list)
 		save_timelist();
 
-	//남은 시간(col_remain) 오름차순 정렬 — 가장 가까운 알람이 위로.
-	m_list.sort(col_remain, CVtListCtrlEx::sort_ascending);
+	//전 항목 col_remain 동기화 후 정렬. (load 직후 등 stale 인 경우도 안전)
+	refresh_remain_and_sort();
 }
 
 //1:13(=1h 13m), 1d 20m(=1일 20분) 등의 문자열을 총 minutes로 변환한다.
@@ -542,6 +545,76 @@ void CTimeListDlg::load_timelist()
 			//delete[] reinterpret_cast<BYTE*>(item);
 		}
 	}
+}
+
+void CTimeListDlg::refresh_remain_and_sort()
+{
+	//col_remain 은 default text 컬럼이라 CVtListCtrlEx::sort 의 _ttof / 사전식 비교로는
+	//"HH:MM:SS" 형식을 정확히 줄세울 수 없다. 따라서 직접 std::sort + lambda 로 정렬한다.
+	//키는 (start + ts_duration - now) 의 total seconds. 가장 가까운 알람이 위로 (오름차순).
+	int n = m_list.size();
+	if (n == 0)
+		return;
+
+	//항목이 1개뿐이면 정렬은 의미 없지만 floating 보장은 필요.
+	if (n == 1)
+	{
+		auto* it = (CAlarmItem*)m_list.GetItemData(0);
+		if (it && !it->is_floating)
+		{
+			it->is_floating = true;
+			save_timelist();
+		}
+		return;
+	}
+
+	CTime now = CTime::GetCurrentTime();
+
+	struct Row
+	{
+		LONGLONG		remain_secs;
+		CAlarmItem*		item;
+	};
+	std::vector<Row> rows;
+	rows.reserve(n);
+
+	for (int i = 0; i < n; i++)
+	{
+		auto* it = (CAlarmItem*)m_list.GetItemData(i);
+		if (!it)
+			continue;
+		CTimeSpan remain = (it->start + it->ts_duration) - now;
+		rows.push_back({ remain.GetTotalSeconds(), it });
+	}
+
+	std::sort(rows.begin(), rows.end(),
+		[](const Row& a, const Row& b)
+		{
+			return a.remain_secs < b.remain_secs;
+		});
+
+	//정렬된 순서대로 리스트 재구성. delete_all_items 는 m_list_db 만 비우고
+	//각 라인의 data(=CAlarmItem*) 는 해제하지 않으므로 포인터 그대로 재삽입 가능.
+	m_list.delete_all_items();
+	for (const auto& r : rows)
+	{
+		int idx = m_list.insert_item(-1, 0,
+			r.item->title,
+			get_time_str(r.item->start),
+			get_time_str(r.item->ts_duration),
+			get_time_str(r.item->start + r.item->ts_duration),
+			get_time_str(r.remain_secs),
+			get_date_str(r.item->start));
+		m_list.SetItemData(idx, reinterpret_cast<DWORD_PTR>(r.item));
+	}
+
+	//정렬 후 맨 앞(가장 임박한) 항목을 floating 으로, 나머지는 해제.
+	//m_floating UI 텍스트는 다음 OnTimer 틱에서 새 floating 항목 기준으로 갱신됨.
+	for (size_t i = 0; i < rows.size(); i++)
+		rows[i].item->is_floating = (i == 0);
+
+	//floating 변경분도 영속화.
+	save_timelist();
 }
 
 void CTimeListDlg::save_timelist()
@@ -951,8 +1024,8 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 
 	save_timelist();
 
-	//남은 시간(col_remain) 오름차순 정렬 — 가장 가까운 알람이 위로.
-	m_list.sort(col_remain, CVtListCtrlEx::sort_ascending);
+	//전 항목 col_remain 동기화 후 정렬.
+	refresh_remain_and_sort();
 
 	*pResult = 0;
 }
