@@ -57,6 +57,9 @@ protected:
 	//모든 항목의 col_remain 텍스트를 CAlarmItem (start + duration - now) 기준으로 동기화 후
 	//남은 시각 오름차순 정렬. add/edit 직후 호출.
 	void			refresh_remain_and_sort();
+	//floating 항목이 1개도 없다면 0번 항목(가장 임박)을 floating 으로 보정.
+	//정렬 직후 / 삭제 직후 등 리스트 변경 시점에 호출.
+	void			ensure_floating();
 
 	enum TIMER_ID
 	{

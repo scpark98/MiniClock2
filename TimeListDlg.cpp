@@ -547,6 +547,28 @@ void CTimeListDlg::load_timelist()
 	}
 }
 
+void CTimeListDlg::ensure_floating()
+{
+	//floating 항목이 하나도 없으면 가장 임박한(=정렬 후 0번) 항목을 floating 으로 지정.
+	//기존에 floating 이 있으면 그대로 둔다.
+	if (m_list.size() == 0)
+		return;
+
+	for (int i = 0; i < m_list.size(); i++)
+	{
+		auto* it = (CAlarmItem*)m_list.GetItemData(i);
+		if (it && it->is_floating)
+			return;
+	}
+
+	auto* it0 = (CAlarmItem*)m_list.GetItemData(0);
+	if (it0)
+	{
+		it0->is_floating = true;
+		save_timelist();
+	}
+}
+
 void CTimeListDlg::refresh_remain_and_sort()
 {
 	//col_remain 은 default text 컬럼이라 CVtListCtrlEx::sort 의 _ttof / 사전식 비교로는
@@ -559,12 +581,7 @@ void CTimeListDlg::refresh_remain_and_sort()
 	//항목이 1개뿐이면 정렬은 의미 없지만 floating 보장은 필요.
 	if (n == 1)
 	{
-		auto* it = (CAlarmItem*)m_list.GetItemData(0);
-		if (it && !it->is_floating)
-		{
-			it->is_floating = true;
-			save_timelist();
-		}
+		ensure_floating();
 		return;
 	}
 
@@ -593,6 +610,8 @@ void CTimeListDlg::refresh_remain_and_sort()
 			return a.remain_secs < b.remain_secs;
 		});
 
+	m_list.SetRedraw(FALSE);
+
 	//정렬된 순서대로 리스트 재구성. delete_all_items 는 m_list_db 만 비우고
 	//각 라인의 data(=CAlarmItem*) 는 해제하지 않으므로 포인터 그대로 재삽입 가능.
 	m_list.delete_all_items();
@@ -605,16 +624,21 @@ void CTimeListDlg::refresh_remain_and_sort()
 			get_time_str(r.item->start + r.item->ts_duration),
 			get_time_str(r.remain_secs),
 			get_date_str(r.item->start));
+		r.item->is_floating = false;
 		m_list.SetItemData(idx, reinterpret_cast<DWORD_PTR>(r.item));
 	}
 
-	//정렬 후 맨 앞(가장 임박한) 항목을 floating 으로, 나머지는 해제.
-	//m_floating UI 텍스트는 다음 OnTimer 틱에서 새 floating 항목 기준으로 갱신됨.
-	for (size_t i = 0; i < rows.size(); i++)
-		rows[i].item->is_floating = (i == 0);
+	m_list.SetRedraw(TRUE);
 
-	//floating 변경분도 영속화.
-	save_timelist();
+	if (m_list.size() > 0)
+	{
+		CAlarmItem* data = (CAlarmItem*)m_list.GetItemData(0);
+		data->is_floating = true;
+	}
+
+	//정렬 후 floating 보정: 1개도 없으면 가장 임박한 0번 항목을 floating 으로.
+	//기존 floating 이 있다면 그대로 유지(=사용자 수동 지정 존중).
+	//ensure_floating();
 }
 
 void CTimeListDlg::save_timelist()
@@ -871,6 +895,9 @@ void CTimeListDlg::OnMenuDelete()
 	}
 
 	save_timelist();
+
+	//floating 항목이 모두 삭제되었다면 남은 항목 중 0번(가장 임박)을 floating 으로 승격.
+	ensure_floating();
 }
 
 LRESULT CTimeListDlg::on_message_CSCShapeDlg(WPARAM wParam, LPARAM lParam)
