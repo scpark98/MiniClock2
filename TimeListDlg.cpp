@@ -727,8 +727,8 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 				m_floating.set_text_color(Gdiplus::Color(128, 128, 96, 16));
 			}
 
-			//5분이 지났다면 완전 삭제한다.
-			if (remain_seconds < -300)
+			//10분이 지났다면 목록에서 완전 삭제한다.
+			if (remain_seconds < -600)
 			{
 				if (item->is_floating)
 					has_floating = false;
