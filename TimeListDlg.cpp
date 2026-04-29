@@ -545,6 +545,8 @@ void CTimeListDlg::load_timelist()
 			//delete[] reinterpret_cast<BYTE*>(item);
 		}
 	}
+
+	ensure_floating();
 }
 
 void CTimeListDlg::ensure_floating()
@@ -716,7 +718,7 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 		if (remain_seconds == 0)
 		{
 			::MessageBeep(MB_ICONEXCLAMATION);
-			m_msgbox.DoModal(item->title, MB_OK, 60 * 60);
+			m_msgbox.DoModal(item->title, MB_OK, 10);
 		}
 		else if (remain_seconds < 0)
 		{
@@ -727,14 +729,15 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 				m_floating.set_text_color(Gdiplus::Color(128, 128, 96, 16));
 			}
 
-			//10분이 지났다면 목록에서 완전 삭제한다.
-			if (remain_seconds < -600)
+			//1분이 지났다면 목록에서 완전 삭제한다.
+			if (remain_seconds < -60)
 			{
 				if (item->is_floating)
 					has_floating = false;
 
 				delete item;
 				m_list.delete_item(i);
+				ensure_floating();
 				i--;
 				save_timelist();
 			}
@@ -893,8 +896,6 @@ void CTimeListDlg::OnMenuDelete()
 		delete item;
 		m_list.delete_item(selected[i]);
 	}
-
-	save_timelist();
 
 	//floating 항목이 모두 삭제되었다면 남은 항목 중 0번(가장 임박)을 floating 으로 승격.
 	ensure_floating();
