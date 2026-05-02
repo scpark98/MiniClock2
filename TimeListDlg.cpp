@@ -74,6 +74,10 @@ BOOL CTimeListDlg::OnInitDialog()
 	// 캡션 + 모든 테두리 제거
 	style &= ~(WS_CAPTION | WS_THICKFRAME | WS_BORDER | WS_DLGFRAME);
 	style |= WS_THICKFRAME; // resize는 가능하도록 테두리는 남긴다.
+	//OnPaint 가 client 전체를 GRAY(32) 로 칠하는데 WS_CLIPCHILDREN 이 없으면
+	//자식(체크박스/리스트) 영역까지 덮어써버린다. 자식은 부모 invalidate 로는 자동 재그리지 않아
+	//OnNcActivate 의 Invalidate() 후 체크박스 V/박스가 사라진 상태로 남는다.
+	style |= WS_CLIPCHILDREN;
 
 	::SetWindowLongPtr(m_hWnd, GWL_STYLE, style);
 
@@ -92,8 +96,11 @@ BOOL CTimeListDlg::OnInitDialog()
 	m_static_alarm_list.set_color(GRAY128, GRAY32);
 	m_static_alarm_list.set_font_weight();
 
-	m_check_autohide.set_back_color(GRAY(32), false);
-	m_check_autohide.set_text_color(GRAY128, lightblue, GRAY(212), GRAY(212));
+	//RGB()/GRAY() 매크로는 COLORREF (alpha=0). Gdiplus::Color 인자로 넘기면
+	//ARGB 0x00xxxxxx → 알파 0 → GDI+ Pen/Brush 로 그리면 완전 투명. V 자 체크가 안 그려졌던 원인.
+	//Pen/Brush 로 그려지는 항목은 반드시 gGRAY()/gRGB() (alpha=255) 를 써야 한다.
+	m_check_autohide.set_back_color(gGRAY(32), false);
+	m_check_autohide.set_text_color(gGRAY(128), false);// Gdiplus::Color::LightBlue, gGRAY(192), gGRAY(192));
 	m_check_autohide.set_font_weight(FW_BOLD);
 	m_check_autohide.SetCheck(theApp.GetProfileInt(_T("TimeListDlg"), _T("auto hide"), false));
 
@@ -551,24 +558,46 @@ void CTimeListDlg::load_timelist()
 
 void CTimeListDlg::ensure_floating()
 {
-	//floating 항목이 하나도 없으면 가장 임박한(=정렬 후 0번) 항목을 floating 으로 지정.
-	//기존에 floating 이 있으면 그대로 둔다.
+	//남은시간이 가장 짧은 *양의* 항목 1개만 floating, 나머지는 모두 floating 해제.
+	//양의 remain 항목이 하나도 없으면 어떤 항목도 floating 되지 않는다.
 	if (m_list.size() == 0)
 		return;
+
+	CTime now = CTime::GetCurrentTime();
+	int target = -1;
+	LONGLONG min_remain = 0;
 
 	for (int i = 0; i < m_list.size(); i++)
 	{
 		auto* it = (CAlarmItem*)m_list.GetItemData(i);
-		if (it && it->is_floating)
-			return;
+		if (!it)
+			continue;
+		LONGLONG s = ((it->start + it->ts_duration) - now).GetTotalSeconds();
+		if (s < 0)
+			continue;
+		if (target < 0 || s < min_remain)
+		{
+			target = i;
+			min_remain = s;
+		}
 	}
 
-	auto* it0 = (CAlarmItem*)m_list.GetItemData(0);
-	if (it0)
+	bool changed = false;
+	for (int i = 0; i < m_list.size(); i++)
 	{
-		it0->is_floating = true;
-		save_timelist();
+		auto* it = (CAlarmItem*)m_list.GetItemData(i);
+		if (!it)
+			continue;
+		bool want = (i == target);
+		if (it->is_floating != want)
+		{
+			it->is_floating = want;
+			changed = true;
+		}
 	}
+
+	if (changed)
+		save_timelist();
 }
 
 void CTimeListDlg::refresh_remain_and_sort()
@@ -626,21 +655,12 @@ void CTimeListDlg::refresh_remain_and_sort()
 			get_time_str(r.item->start + r.item->ts_duration),
 			get_time_str(r.remain_secs),
 			get_date_str(r.item->start));
-		r.item->is_floating = false;
 		m_list.SetItemData(idx, reinterpret_cast<DWORD_PTR>(r.item));
 	}
 
 	m_list.SetRedraw(TRUE);
 
-	if (m_list.size() > 0)
-	{
-		CAlarmItem* data = (CAlarmItem*)m_list.GetItemData(0);
-		data->is_floating = true;
-	}
-
-	//정렬 후 floating 보정: 1개도 없으면 가장 임박한 0번 항목을 floating 으로.
-	//기존 floating 이 있다면 그대로 유지(=사용자 수동 지정 존중).
-	//ensure_floating();
+	ensure_floating();
 }
 
 void CTimeListDlg::save_timelist()
@@ -814,6 +834,7 @@ void CTimeListDlg::OnMenuResetStartTime()
 	m_list.set_text(selected, col_start, get_time_str(item->start));
 
 	save_timelist();
+	refresh_remain_and_sort();
 }
 
 void CTimeListDlg::OnMenuFloating()
@@ -897,7 +918,8 @@ void CTimeListDlg::OnMenuDelete()
 		m_list.delete_item(selected[i]);
 	}
 
-	//floating 항목이 모두 삭제되었다면 남은 항목 중 0번(가장 임박)을 floating 으로 승격.
+	save_timelist();
+	//남은 항목 중 가장 임박한(양의) 항목을 floating 으로 승격.
 	ensure_floating();
 }
 
