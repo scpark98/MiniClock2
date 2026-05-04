@@ -338,9 +338,9 @@ void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 	POINT ptSrc = { 0, 0 };
 	POINT ptWinPos = { rc.left, rc.top };
 	SIZE sz;
-	// PotPlayer64.exe 실행 중이면 알파를 80%로 낮춰 영상 가림 최소화.
+	//PotPlayer64.exe 가 *재생 중* 일 때만 알파 낮춤. 정지/일시정지/미디어 미로드는 그대로.
 	int alpha_eff = m_alpha;
-	if (get_process_running_count(_T("PotPlayer64.exe")) > 0)
+	if (is_process_audio_active(_T("PotPlayer64.exe")) || is_process_audio_active(_T("Endorphin.exe")))
 	{
 		alpha_eff = (int)(m_alpha * 0.2);
 	}
