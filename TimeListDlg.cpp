@@ -104,12 +104,12 @@ BOOL CTimeListDlg::OnInitDialog()
 	m_check_autohide.set_font_weight(FW_BOLD);
 	m_check_autohide.SetCheck(theApp.GetProfileInt(_T("TimeListDlg"), _T("auto hide"), false));
 
-	m_floating.set_text(this, _T(" "), 13, Gdiplus::FontStyle::FontStyleBold, 1, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
+	m_floating.set_text(this, _T(" "), 13, Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
 		Gdiplus::Color(255, 128, 128, 192),
 		Gdiplus::Color(255, 0, 0, 0),
 		Gdiplus::Color(255, 64, 64, 64),
 		Gdiplus::Color(1, 0, 0, 0));
-	RestoreWindowPosition(&theApp, &m_floating, _T("TimeListDlg\\m_floating"), false, true, false);
+	RestoreWindowPosition(&theApp, &m_floating, _T("TimeListDlg\\m_floating"), false, false, false);
 
 	RestoreWindowPosition(&theApp, this, _T("TimeListDlg"));// , false, true, true);
 
@@ -728,6 +728,7 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 			CSCShapeDlgTextSetting* setting = m_floating.get_text_setting();
 			setting->text = str;
 			m_floating.set_text(setting);
+			m_floating.save_image(_T("D:\\floating.png"));
 		}
 
 		//역시 남은 시각도 계속 변경되어야 한다.

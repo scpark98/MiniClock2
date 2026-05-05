@@ -167,11 +167,11 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	RestoreWindowPosition(&theApp, this);
 
 	m_temperature.set_text(this, _T("GPU -% -℃"), 13,
-		Gdiplus::FontStyle::FontStyleBold, 1, 1.6f, _T("DSEG7 Classic"),
-		Gdiplus::Color(212, 196, 166, 138),
+		Gdiplus::FontStyle::FontStyleRegular, 0.0f, 1.6f, _T("DSEG7 Classic"),
+		Gdiplus::Color(212, 132, 125, 91),
 		Gdiplus::Color(255, 0, 0, 0),
 		Gdiplus::Color(255, 64, 64, 64),
-		Gdiplus::Color(1, 1, 1, 1));		//완전 투명한 배경처럼 보이면서 드래그하여 이동하기도 편하다.
+		Gdiplus::Color(1, 0, 0, 0));		//완전 투명한 배경처럼 보이면서 드래그하여 이동하기도 편하다.
 	RestoreWindowPosition(&theApp, &m_temperature, _T("m_temperature"), false, true, false);
 	m_temperature.ShowWindow(theApp.GetProfileInt(_T("setting"), _T("nvidia info"), true) ? SW_SHOW : SW_HIDE);
 
@@ -190,7 +190,7 @@ void CMiniClock2Dlg::load_setting()
 	_tcscpy_s(m_text_prop.name, _T("DSEG7 Classic"));
 	m_text_prop.style = Gdiplus::FontStyleBold;
 	m_text_prop.size = 13;
-	m_text_prop.shadow_depth = 1.0f;
+	m_text_prop.shadow_depth = 0.0f;
 	m_text_prop.thickness = 1.6f;
 	m_text_prop.cr_text = Gdiplus::Color(255, 132, 125, 91);
 	m_text_prop.cr_stroke = Gdiplus::Color(255, 0, 0, 0);
@@ -209,6 +209,8 @@ void CMiniClock2Dlg::load_setting()
 
 		delete[] reinterpret_cast<BYTE*>(prop);
 	}
+
+	m_text_prop.shadow_depth = 0.0f;
 }
 
 void CMiniClock2Dlg::save_setting()
