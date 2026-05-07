@@ -342,7 +342,9 @@ void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 	SIZE sz;
 	//PotPlayer64.exe 가 *재생 중* 일 때만 알파 낮춤. 정지/일시정지/미디어 미로드는 그대로.
 	int alpha_eff = m_alpha;
-	if (is_process_audio_active(_T("PotPlayer64.exe")) || is_process_audio_active(_T("Endorphin.exe")))
+	if (is_process_audio_active(_T("PotPlayer64.exe")) ||
+		is_process_audio_active(_T("Endorphin.exe")) ||
+		is_process_audio_active(_T("Endorphin2.exe")))
 	{
 		alpha_eff = (int)(m_alpha * 0.2);
 	}
