@@ -1,4 +1,4 @@
-ï»¿// TimeListDlg.cpp: êµ¬í˜„ íŒŒì¼
+// TimeListDlg.cpp: ±¸Çö ÆÄÀÏ
 //
 
 #include "pch.h"
@@ -10,7 +10,7 @@
 #include "Common/MemoryDC.h"
 //#include "Common/messagebox/XMessageBox/XMessageBox.h"
 
-// CTimeListDlg ëŒ€í™” ìƒì
+// CTimeListDlg ´ëÈ­ »óÀÚ
 
 IMPLEMENT_DYNAMIC(CTimeListDlg, CDialogEx)
 
@@ -62,26 +62,26 @@ BEGIN_MESSAGE_MAP(CTimeListDlg, CDialogEx)
 END_MESSAGE_MAP()
 
 
-// CTimeListDlg ë©”ì‹œì§€ ì²˜ë¦¬ê¸°
+// CTimeListDlg ¸Ş½ÃÁö Ã³¸®±â
 
 BOOL CTimeListDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
 
-	// TODO:  ì—¬ê¸°ì— ì¶”ê°€ ì´ˆê¸°í™” ì‘ì—…ì„ ì¶”ê°€í•©ë‹ˆë‹¤.
+	// TODO:  ¿©±â¿¡ Ãß°¡ ÃÊ±âÈ­ ÀÛ¾÷À» Ãß°¡ÇÕ´Ï´Ù.
 	LONG_PTR style = ::GetWindowLongPtr(m_hWnd, GWL_STYLE);
 
-	// ìº¡ì…˜ + ëª¨ë“  í…Œë‘ë¦¬ ì œê±°
+	// Ä¸¼Ç + ¸ğµç Å×µÎ¸® Á¦°Å
 	style &= ~(WS_CAPTION | WS_THICKFRAME | WS_BORDER | WS_DLGFRAME);
-	style |= WS_THICKFRAME; // resizeëŠ” ê°€ëŠ¥í•˜ë„ë¡ í…Œë‘ë¦¬ëŠ” ë‚¨ê¸´ë‹¤.
-	//OnPaint ê°€ client ì „ì²´ë¥¼ GRAY(32) ë¡œ ì¹ í•˜ëŠ”ë° WS_CLIPCHILDREN ì´ ì—†ìœ¼ë©´
-	//ìì‹(ì²´í¬ë°•ìŠ¤/ë¦¬ìŠ¤íŠ¸) ì˜ì—­ê¹Œì§€ ë®ì–´ì¨ë²„ë¦°ë‹¤. ìì‹ì€ ë¶€ëª¨ invalidate ë¡œëŠ” ìë™ ì¬ê·¸ë¦¬ì§€ ì•Šì•„
-	//OnNcActivate ì˜ Invalidate() í›„ ì²´í¬ë°•ìŠ¤ V/ë°•ìŠ¤ê°€ ì‚¬ë¼ì§„ ìƒíƒœë¡œ ë‚¨ëŠ”ë‹¤.
+	style |= WS_THICKFRAME; // resize´Â °¡´ÉÇÏµµ·Ï Å×µÎ¸®´Â ³²±ä´Ù.
+	//OnPaint °¡ client ÀüÃ¼¸¦ GRAY(32) ·Î Ä¥ÇÏ´Âµ¥ WS_CLIPCHILDREN ÀÌ ¾øÀ¸¸é
+	//ÀÚ½Ä(Ã¼Å©¹Ú½º/¸®½ºÆ®) ¿µ¿ª±îÁö µ¤¾î½á¹ö¸°´Ù. ÀÚ½ÄÀº ºÎ¸ğ invalidate ·Î´Â ÀÚµ¿ Àç±×¸®Áö ¾Ê¾Æ
+	//OnNcActivate ÀÇ Invalidate() ÈÄ Ã¼Å©¹Ú½º V/¹Ú½º°¡ »ç¶óÁø »óÅÂ·Î ³²´Â´Ù.
 	style |= WS_CLIPCHILDREN;
 
 	::SetWindowLongPtr(m_hWnd, GWL_STYLE, style);
 
-	// ë°˜ë“œì‹œ í•„ìš” (í”„ë ˆì„ ë‹¤ì‹œ ê³„ì‚°)
+	// ¹İµå½Ã ÇÊ¿ä (ÇÁ·¹ÀÓ ´Ù½Ã °è»ê)
 	::SetWindowPos(m_hWnd, nullptr, 0, 0, 0, 0,
 		SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
 		SWP_NOACTIVATE | SWP_FRAMECHANGED);
@@ -96,15 +96,15 @@ BOOL CTimeListDlg::OnInitDialog()
 	m_static_alarm_list.set_color(GRAY128, GRAY32);
 	m_static_alarm_list.set_font_weight();
 
-	//RGB()/GRAY() ë§¤í¬ë¡œëŠ” COLORREF (alpha=0). Gdiplus::Color ì¸ìë¡œ ë„˜ê¸°ë©´
-	//ARGB 0x00xxxxxx â†’ ì•ŒíŒŒ 0 â†’ GDI+ Pen/Brush ë¡œ ê·¸ë¦¬ë©´ ì™„ì „ íˆ¬ëª…. V ì ì²´í¬ê°€ ì•ˆ ê·¸ë ¤ì¡Œë˜ ì›ì¸.
-	//Pen/Brush ë¡œ ê·¸ë ¤ì§€ëŠ” í•­ëª©ì€ ë°˜ë“œì‹œ gGRAY()/gRGB() (alpha=255) ë¥¼ ì¨ì•¼ í•œë‹¤.
+	//RGB()/GRAY() ¸ÅÅ©·Î´Â COLORREF (alpha=0). Gdiplus::Color ÀÎÀÚ·Î ³Ñ±â¸é
+	//ARGB 0x00xxxxxx ¡æ ¾ËÆÄ 0 ¡æ GDI+ Pen/Brush ·Î ±×¸®¸é ¿ÏÀü Åõ¸í. V ÀÚ Ã¼Å©°¡ ¾È ±×·ÁÁ³´ø ¿øÀÎ.
+	//Pen/Brush ·Î ±×·ÁÁö´Â Ç×¸ñÀº ¹İµå½Ã gGRAY()/gRGB() (alpha=255) ¸¦ ½á¾ß ÇÑ´Ù.
 	m_check_autohide.set_back_color(gGRAY(32), false);
 	m_check_autohide.set_text_color(gGRAY(128), false);// Gdiplus::Color::LightBlue, gGRAY(192), gGRAY(192));
 	m_check_autohide.set_font_weight(FW_BOLD);
 	m_check_autohide.SetCheck(theApp.GetProfileInt(_T("TimeListDlg"), _T("auto hide"), false));
 
-	m_floating.set_text(this, _T(" "), 13, Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),//_T("ë§‘ì€ ê³ ë”•")),
+	m_floating.set_text(this, _T(" "), 13, Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),//_T("¸¼Àº °íµñ")),
 		Gdiplus::Color(255, 128, 128, 192),
 		Gdiplus::Color(255, 0, 0, 0),
 		Gdiplus::Color(255, 64, 64, 64),
@@ -122,7 +122,7 @@ BOOL CTimeListDlg::OnInitDialog()
 	SetTimer(timer_time, 1000, NULL);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	// ì˜ˆì™¸: OCX ì†ì„± í˜ì´ì§€ëŠ” FALSEë¥¼ ë°˜í™˜í•´ì•¼ í•©ë‹ˆë‹¤.
+	// ¿¹¿Ü: OCX ¼Ó¼º ÆäÀÌÁö´Â FALSE¸¦ ¹İÈ¯ÇØ¾ß ÇÕ´Ï´Ù.
 }
 
 BOOL CTimeListDlg::PreTranslateMessage(MSG* pMsg)
@@ -148,7 +148,7 @@ BOOL CTimeListDlg::PreTranslateMessage(MSG* pMsg)
 
 BOOL CTimeListDlg::OnEraseBkgnd(CDC* pDC)
 {
-	// TODO: ì—¬ê¸°ì— ë©”ì‹œì§€ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€ ë°/ë˜ëŠ” ê¸°ë³¸ê°’ì„ í˜¸ì¶œí•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ¸Ş½ÃÁö Ã³¸®±â ÄÚµå¸¦ Ãß°¡ ¹×/¶Ç´Â ±âº»°ªÀ» È£ÃâÇÕ´Ï´Ù.
 	return FALSE;
 	return CDialogEx::OnEraseBkgnd(pDC);
 }
@@ -157,33 +157,33 @@ void CTimeListDlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)
 {
 	CDialogEx::OnWindowPosChanged(lpwndpos);
 
-	// TODO: ì—¬ê¸°ì— ë©”ì‹œì§€ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€í•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ¸Ş½ÃÁö Ã³¸®±â ÄÚµå¸¦ Ãß°¡ÇÕ´Ï´Ù.
 	SaveWindowPosition(&theApp, this, _T("TimeListDlg"));
 }
 
 void CTimeListDlg::OnBnClickedOk()
 {
-	// TODO: ì—¬ê¸°ì— ì»¨íŠ¸ë¡¤ ì•Œë¦¼ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€í•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ÄÁÆ®·Ñ ¾Ë¸² Ã³¸®±â ÄÚµå¸¦ Ãß°¡ÇÕ´Ï´Ù.
 	CDialogEx::OnOK();
 }
 
 void CTimeListDlg::OnBnClickedCancel()
 {
-	// TODO: ì—¬ê¸°ì— ì»¨íŠ¸ë¡¤ ì•Œë¦¼ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€í•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ÄÁÆ®·Ñ ¾Ë¸² Ã³¸®±â ÄÚµå¸¦ Ãß°¡ÇÕ´Ï´Ù.
 	CDialogEx::OnCancel();
 }
 
 void CTimeListDlg::OnDestroy()
 {
-	// ì•ˆì „ë§: ë³€ê²½ ì‹œì ë§ˆë‹¤ ì €ì¥í•˜ì§€ë§Œ ëˆ„ë½ ê²½ë¡œê°€ ìˆì„ ìˆ˜ ìˆìœ¼ë¯€ë¡œ ì¢…ë£Œ ì‹œ í•œ ë²ˆ ë”.
-	// ì•„ë˜ delete ë£¨í”„ê°€ item ë“¤ì„ í•´ì œí•˜ë¯€ë¡œ ë°˜ë“œì‹œ ê·¸ ì „ì— í˜¸ì¶œ.
+	// ¾ÈÀü¸Á: º¯°æ ½ÃÁ¡¸¶´Ù ÀúÀåÇÏÁö¸¸ ´©¶ô °æ·Î°¡ ÀÖÀ» ¼ö ÀÖÀ¸¹Ç·Î Á¾·á ½Ã ÇÑ ¹ø ´õ.
+	// ¾Æ·¡ delete ·çÇÁ°¡ item µéÀ» ÇØÁ¦ÇÏ¹Ç·Î ¹İµå½Ã ±× Àü¿¡ È£Ãâ.
 	save_timelist();
 
 	m_list.save_column_width(&theApp, _T("TimeListDlg\\list"));
 
-	//ì´ë¯¸ m_floatingëŠ” íŒŒê´´ëœ ìƒíƒœì´ë¯€ë¡œ ì—¬ê¸°ì„œ ì €ì¥í•´ì„  ì•ˆëœë‹¤.
-	//main dlgê°€ íŒŒê´´ë  ë•Œ m_floatingë„ ê°™ì´ íŒŒê´´ë˜ë„ë¡ ì„¤ì •ë˜ì–´ ìˆìœ¼ë¯€ë¡œ main dlgì˜ OnDestroy()ì—ì„œ ì €ì¥í•˜ë„ë¡ í•œë‹¤.
-	//ë˜ëŠ” CSCShapeDlgì—ì„œ ì´ë™ ì‹œ ë©”ì‹œì§€ë¥¼ ì „ë‹¬í•´ì„œ ì—¬ê¸°ì„œ ì €ì¥í• ìˆ˜ë„ ìˆë‹¤.
+	//ÀÌ¹Ì m_floating´Â ÆÄ±«µÈ »óÅÂÀÌ¹Ç·Î ¿©±â¼­ ÀúÀåÇØ¼± ¾ÈµÈ´Ù.
+	//main dlg°¡ ÆÄ±«µÉ ¶§ m_floatingµµ °°ÀÌ ÆÄ±«µÇµµ·Ï ¼³Á¤µÇ¾î ÀÖÀ¸¹Ç·Î main dlgÀÇ OnDestroy()¿¡¼­ ÀúÀåÇÏµµ·Ï ÇÑ´Ù.
+	//¶Ç´Â CSCShapeDlg¿¡¼­ ÀÌµ¿ ½Ã ¸Ş½ÃÁö¸¦ Àü´ŞÇØ¼­ ¿©±â¼­ ÀúÀåÇÒ¼öµµ ÀÖ´Ù.
 	//SaveWindowPosition(&theApp, &m_floating, _T("TimeListDlg\\m_floating"));
 
 	for (int i = 0; i < m_list.GetItemCount(); i++)
@@ -198,7 +198,7 @@ void CTimeListDlg::OnDestroy()
 
 void CTimeListDlg::OnLButtonDown(UINT nFlags, CPoint point)
 {
-	// TODO: ì—¬ê¸°ì— ë©”ì‹œì§€ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€ ë°/ë˜ëŠ” ê¸°ë³¸ê°’ì„ í˜¸ì¶œí•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ¸Ş½ÃÁö Ã³¸®±â ÄÚµå¸¦ Ãß°¡ ¹×/¶Ç´Â ±âº»°ªÀ» È£ÃâÇÕ´Ï´Ù.
 	DefWindowProc(WM_NCLBUTTONDOWN, HTCAPTION, MAKEWORD(point.x, point.y));
 
 	CDialogEx::OnLButtonDown(nFlags, point);
@@ -230,7 +230,7 @@ void CTimeListDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 			if (token.size() < 2)
 				continue;
 
-			caption.Format(_T("%s (%s%s) (&%d)"), token[0], token[1], (token[1].Find(_T(":")) > 0) ? _T("") : _T("ë¶„"), i + 1);
+			caption.Format(_T("%s (%s%s) (&%d)"), token[0], token[1], (token[1].Find(_T(":")) > 0) ? _T("") : _T("ºĞ"), i + 1);
 			pMenu->AppendMenu(MF_STRING, menu_favorite_start + i, caption);
 		}
 	}
@@ -268,7 +268,7 @@ void CTimeListDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 
 void CTimeListDlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
-	// TODO: ì—¬ê¸°ì— ë©”ì‹œì§€ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€ ë°/ë˜ëŠ” ê¸°ë³¸ê°’ì„ í˜¸ì¶œí•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ¸Ş½ÃÁö Ã³¸®±â ÄÚµå¸¦ Ãß°¡ ¹×/¶Ç´Â ±âº»°ªÀ» È£ÃâÇÕ´Ï´Ù.
 
 	CDialogEx::OnGetMinMaxInfo(lpMMI);
 }
@@ -277,10 +277,10 @@ void CTimeListDlg::init_list()
 {
 	m_list.SetExtendedStyle(/*LVS_EX_GRIDLINES | */LVS_EX_FLATSB | /*LVS_EX_CHECKBOXES |*/ LVS_EX_FULLROWSELECT | LVS_EX_INFOTIP);
 	m_list.set_color_theme(CSCColorTheme::color_theme_dark_gray);//, false);
-	m_list.set_headings(_T("ì´ë¦„,120;ë“±ë¡ ì‹œê°,80;ê°„ê²©,44;ì•ŒëŒ ì‹œê°,80;ë‚¨ì€ ì‹œê°,80;ë“±ë¡ ë‚ ì§œ,88"));
+	m_list.set_headings(_T("ÀÌ¸§,120;µî·Ï ½Ã°¢,80;°£°İ,44;¾Ë¶÷ ½Ã°¢,80;³²Àº ½Ã°¢,80;µî·Ï ³¯Â¥,88"));
 
 	m_list.allow_edit();
-	m_list.set_font_name(theApp.GetProfileString(_T("TimeListDlg\\list\\setting"), _T("font name"), _T("ë§‘ì€ ê³ ë”•")));
+	m_list.set_font_name(theApp.GetProfileString(_T("TimeListDlg\\list\\setting"), _T("font name"), _T("¸¼Àº °íµñ")));
 	m_list.set_font_size(theApp.GetProfileInt(_T("TimeListDlg\\list\\setting"), _T("font size"), 8));
 	m_list.set_line_height(18);// theApp.GetProfileInt(_T("TimeListDlg\\list\\setting"), _T("line height"), 20));
 	m_list.restore_column_width(&theApp, _T("TimeListDlg\\list"));
@@ -291,8 +291,8 @@ void CTimeListDlg::init_list()
 		m_list.set_column_text_align(i, LVCFMT_CENTER);
 
 	//m_list.set_column_data_type(col_duration, CVtListCtrlEx::column_data_type_numeric);
-	//ë‚¨ì€ ì‹œê°ì€ "HH:MM:SS" ë˜ëŠ” "-HH:MM:SS" í˜•ì‹ìœ¼ë¡œ _ttof ê°€ ì„ ë‘ ì‹œê°ê°’ì„ íŒŒì‹±.
-	//í…ìŠ¤íŠ¸ ì •ë ¬ì´ë©´ "100:00:00" ì´ "23:00:00" ë³´ë‹¤ ì•ìœ¼ë¡œ ì˜¤ëŠ” ë“± ì–´ê¸‹ë‚œë‹¤.
+	//³²Àº ½Ã°¢Àº "HH:MM:SS" ¶Ç´Â "-HH:MM:SS" Çü½ÄÀ¸·Î _ttof °¡ ¼±µÎ ½Ã°¢°ªÀ» ÆÄ½Ì.
+	//ÅØ½ºÆ® Á¤·ÄÀÌ¸é "100:00:00" ÀÌ "23:00:00" º¸´Ù ¾ÕÀ¸·Î ¿À´Â µî ¾î±ß³­´Ù.
 	//m_list.set_column_data_type(col_remain, CVtListCtrlEx::column_data_type_numeric);
 
 	m_list.set_draw_selected_border(false);
@@ -309,8 +309,8 @@ void CTimeListDlg::OnPaint()
 
 void CTimeListDlg::OnNcPaint()
 {
-	// TODO: ì—¬ê¸°ì— ë©”ì‹œì§€ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€í•©ë‹ˆë‹¤.
-	// ê·¸ë¦¬ê¸° ë©”ì‹œì§€ì— ëŒ€í•´ì„œëŠ” CDialogEx::OnNcPaint()ì„(ë¥¼) í˜¸ì¶œí•˜ì§€ ë§ˆì‹­ì‹œì˜¤.
+	// TODO: ¿©±â¿¡ ¸Ş½ÃÁö Ã³¸®±â ÄÚµå¸¦ Ãß°¡ÇÕ´Ï´Ù.
+	// ±×¸®±â ¸Ş½ÃÁö¿¡ ´ëÇØ¼­´Â CDialogEx::OnNcPaint()À»(¸¦) È£ÃâÇÏÁö ¸¶½Ê½Ã¿À.
 	CPaintDC dc(this);
 	CRect rc;
 
@@ -320,13 +320,13 @@ void CTimeListDlg::OnNcPaint()
 
 void CTimeListDlg::OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp)
 {
-	// TODO: ì—¬ê¸°ì— ë©”ì‹œì§€ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€ ë°/ë˜ëŠ” ê¸°ë³¸ê°’ì„ í˜¸ì¶œí•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ¸Ş½ÃÁö Ã³¸®±â ÄÚµå¸¦ Ãß°¡ ¹×/¶Ç´Â ±âº»°ªÀ» È£ÃâÇÕ´Ï´Ù.
 	if (bCalcValidRects)// && m_caption_removed)
 	{
 		//NCCALCSIZE_PARAMS* pParams = (NCCALCSIZE_PARAMS*)lParam;
 
-		// ğŸ‘‰ ì—¬ê¸°ì„œ ìœ„ìª½ ì˜ë¼ë‚´ê¸°
-		//pParams->rgrc[0].top += 1; // ë˜ëŠ” 0~8 ì •ë„ ì¡°ì ˆ
+		// ?? ¿©±â¼­ À§ÂÊ Àß¶ó³»±â
+		//pParams->rgrc[0].top += 1; // ¶Ç´Â 0~8 Á¤µµ Á¶Àı
 		lpncsp->rgrc[0].top -= 6;
 		//lpncsp->rgrc[0].bottom += 6;
 	}
@@ -339,8 +339,8 @@ BOOL CTimeListDlg::OnNcActivate(BOOL bActive)
 	Invalidate();
 	UpdateWindow();
 
-	//return TRUE;ë¥¼ í•  ê²½ìš° ë¹„í™œì„±í™” ë  ë•Œ ì—¬ì „íˆ ìƒë‹¨ ë°”ê°€ ë‚¨ëŠ”ë‹¤. FALSEë¡œ í•˜ë‹ˆ ë‚¨ëŠ” ë²„ê·¸ê°€ ì‚¬ë¼ì§.
-	//return FALSE;ë¥¼ í•  ê²½ìš° í°ìƒ‰ë°”ëŠ” ì‚¬ë¼ì§€ì§€ë§Œ ë‹¤ë¥¸ dlgê°€ ì…ë ¥ì´ë²¤íŠ¸ë¥¼ ì „í˜€ ì²˜ë¦¬í•˜ì§€ ëª»í•˜ëŠ” í˜„ìƒì´ ë°œìƒí•¨.
+	//return TRUE;¸¦ ÇÒ °æ¿ì ºñÈ°¼ºÈ­ µÉ ¶§ ¿©ÀüÈ÷ »ó´Ü ¹Ù°¡ ³²´Â´Ù. FALSE·Î ÇÏ´Ï ³²´Â ¹ö±×°¡ »ç¶óÁü.
+	//return FALSE;¸¦ ÇÒ °æ¿ì Èò»ö¹Ù´Â »ç¶óÁöÁö¸¸ ´Ù¸¥ dlg°¡ ÀÔ·ÂÀÌº¥Æ®¸¦ ÀüÇô Ã³¸®ÇÏÁö ¸øÇÏ´Â Çö»óÀÌ ¹ß»ıÇÔ.
 	return TRUE;// FALSE;
 	return CDialogEx::OnNcActivate(bActive);
 }
@@ -355,30 +355,30 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 
 	tStart = CTime::GetCurrentTime();
 
-	//titleì´ ë¹„ì–´ìˆë‹¤ë©´ "ì œëª©ì—†ìŒ"ìœ¼ë¡œ ì„¤ì •í•œë‹¤.
+	//titleÀÌ ºñ¾îÀÖ´Ù¸é "Á¦¸ñ¾øÀ½"À¸·Î ¼³Á¤ÇÑ´Ù.
 	if (title.IsEmpty())
 	{
 		int no_title_count = 0;
 		for (int i = 0; i < m_list.size(); i++)
 		{
-			if (m_list.get_text(i, col_title).Find(_T("ì œëª©ì—†ìŒ")) >= 0)
+			if (m_list.get_text(i, col_title).Find(_T("Á¦¸ñ¾øÀ½")) >= 0)
 				no_title_count++;
 		}
 
-		title.Format(_T("ì œëª©ì—†ìŒ%d"), no_title_count);
+		title.Format(_T("Á¦¸ñ¾øÀ½%d"), no_title_count);
 	}
 
-	//hhmm í˜•ì‹ìœ¼ë¡œ ì…ë ¥ë˜ë©´ ì´ëŠ” ë¶„ ë‹¨ìœ„ê°€ ì•„ë‹ˆë¼ hh:mmì˜ ì˜ë¯¸ë¡œ ì…ë ¥í–ˆë‹¤ê³  ë³´ê³  ':'ì„ ì¶”ê°€í•´ì¤€ë‹¤.
+	//hhmm Çü½ÄÀ¸·Î ÀÔ·ÂµÇ¸é ÀÌ´Â ºĞ ´ÜÀ§°¡ ¾Æ´Ï¶ó hh:mmÀÇ ÀÇ¹Ì·Î ÀÔ·ÂÇß´Ù°í º¸°í ':'À» Ãß°¡ÇØÁØ´Ù.
 	if (duration.GetLength() == 4 && IsNatural(duration))
 	{
 		duration.Insert(2, _T(":"));
 	}
 
-	//ë§Œì•½ ì•ŒëŒì‹œê°„ì„ í‘œì‹œí•˜ëŠ” í˜•ì‹ì¸ hh:mmë¼ë©´ (hh:mm:ssë¡œ ì…ë ¥í•´ë„ ì´ˆëŠ” ë¬´ì‹œëœë‹¤)
-	//hh:mm, h:mm, hh:m, h:m ëª¨ë‘ ê°€ëŠ¥í•˜ë‹¤.
+	//¸¸¾à ¾Ë¶÷½Ã°£À» Ç¥½ÃÇÏ´Â Çü½ÄÀÎ hh:mm¶ó¸é (hh:mm:ss·Î ÀÔ·ÂÇØµµ ÃÊ´Â ¹«½ÃµÈ´Ù)
+	//hh:mm, h:mm, hh:m, h:m ¸ğµÎ °¡´ÉÇÏ´Ù.
 	if (get_char_count(duration, ':') >= 1)
 	{
-		//h:m, h:mm, hh:m, hh:mm í˜•ì‹ìœ¼ë¡œ ì…ë ¥ëœ ê²½ìš°ë¼ë©´
+		//h:m, h:mm, hh:m, hh:mm Çü½ÄÀ¸·Î ÀÔ·ÂµÈ °æ¿ì¶ó¸é
 		std::deque<CString> token;
 		int hour = 0;
 		int minute = 0;
@@ -392,12 +392,12 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 		CTime tEnd = get_CTime_from_datetime_str(_T(""), sEnd);
 		ts_duration = tEnd - tStart;
 
-		//ì§€ë‚œ ì‹œê°„ì´ë¼ë„ ì¦ê²¨ì°¾ê¸° ë“±ë¡ì¼ ê²½ìš°ëŠ” ë“±ë¡ë˜ì–´ì•¼ í•˜ë¯€ë¡œ ì—¬ê¸°ì„œ ìë¥´ë©´ ì•ˆëœë‹¤. ì¼ë‹¨ ì¶”ê°€í•œë‹¤.
-		//ì–´ì§œí”¼ ë¦¬ìŠ¤íŠ¸ì—ì„œ ê±¸ëŸ¬ì§„ë‹¤.
+		//Áö³­ ½Ã°£ÀÌ¶óµµ Áñ°ÜÃ£±â µî·ÏÀÏ °æ¿ì´Â µî·ÏµÇ¾î¾ß ÇÏ¹Ç·Î ¿©±â¼­ ÀÚ¸£¸é ¾ÈµÈ´Ù. ÀÏ´Ü Ãß°¡ÇÑ´Ù.
+		//¾îÂ¥ÇÇ ¸®½ºÆ®¿¡¼­ °É·¯Áø´Ù.
 		/*
 		if (ts_duration.GetTotalSeconds() < 0)
 		{
-			str.Format(_T("%sëŠ” ì´ë¯¸ ì§€ë‚œ ì‹œê°ì…ë‹ˆë‹¤."), sEnd);
+			str.Format(_T("%s´Â ÀÌ¹Ì Áö³­ ½Ã°¢ÀÔ´Ï´Ù."), sEnd);
 			m_msgbox.DoModal(str, MB_OK, 3);
 			return;
 		}
@@ -408,7 +408,7 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 		//else
 		//	duration.Format(_T("%dm"), ts.GetMinutes());
 	}
-	//ì•ŒëŒì‹œê°„ì´ ì•„ë‹Œ ì•ŒëŒì‹œê°„ê¹Œì§€ì˜ ë‚¨ì€ ì‹œê°„ì„ "1h 23m" ë˜ëŠ” "1.23"ê³¼ ê°™ì€ í˜•ì‹ìœ¼ë¡œ ì…ë ¥í•œ ê²½ìš°ë¼ë©´
+	//¾Ë¶÷½Ã°£ÀÌ ¾Æ´Ñ ¾Ë¶÷½Ã°£±îÁöÀÇ ³²Àº ½Ã°£À» "1h 23m" ¶Ç´Â "1.23"°ú °°Àº Çü½ÄÀ¸·Î ÀÔ·ÂÇÑ °æ¿ì¶ó¸é
 	else
 	{
 		int minutes = get_minutes_from_duration_string(duration);
@@ -426,12 +426,12 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 		theApp.WriteProfileInt(_T("favorite"), _T("count"), count + 1);
 	}
 
-	//ì•ŒëŒ ì‹œê°„ì´ ëª…ì‹œëë‹¤ë©´ sEndê°€ ì±„ì›Œì ¸ ìˆìœ¼ë¯€ë¡œ ì—¬ê¸°ì„œëŠ” ìŠ¤í‚µë˜ê³ 
-	//ë‚¨ì€ ì‹œê°„ì´ ëª…ì‹œëë‹¤ë©´ sEndë¥¼ ê³„ì‚°í•´ì¤€ë‹¤.
+	//¾Ë¶÷ ½Ã°£ÀÌ ¸í½ÃµÆ´Ù¸é sEnd°¡ Ã¤¿öÁ® ÀÖÀ¸¹Ç·Î ¿©±â¼­´Â ½ºÅµµÇ°í
+	//³²Àº ½Ã°£ÀÌ ¸í½ÃµÆ´Ù¸é sEnd¸¦ °è»êÇØÁØ´Ù.
 	sDate = get_date_str(tStart);
 
-	//ê¸°ì¡´ í•­ëª© ì¤‘ floating ì¸ ê²ƒì´ ì—†ë‹¤ë©´ ì¶”ê°€ë˜ëŠ” í•­ëª©ì„ ìë™ìœ¼ë¡œ floating ìœ¼ë¡œ ì„¤ì •í•œë‹¤.
-	//(ë¹ˆ ë¦¬ìŠ¤íŠ¸ë„ ìë™ í¬í•¨ë¨)
+	//±âÁ¸ Ç×¸ñ Áß floating ÀÎ °ÍÀÌ ¾ø´Ù¸é Ãß°¡µÇ´Â Ç×¸ñÀ» ÀÚµ¿À¸·Î floating À¸·Î ¼³Á¤ÇÑ´Ù.
+	//(ºó ¸®½ºÆ®µµ ÀÚµ¿ Æ÷ÇÔµÊ)
 	bool any_floating = false;
 	for (int i = 0; i < m_list.size(); i++)
 	{
@@ -447,7 +447,7 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 
 	int index = m_list.insert_item(-1, 0, title, get_time_str(tStart), get_time_str(ts_duration.GetTotalSeconds()), sEnd, _T(""), sDate);
 
-	//floatingì€ ë‹¨ 1 í•­ëª©ë§Œ ê°€ëŠ¥í•˜ë‹¤.
+	//floatingÀº ´Ü 1 Ç×¸ñ¸¸ °¡´ÉÇÏ´Ù.
 	if (floating)
 	{
 		for (int i = 0; i < m_list.size(); i++)
@@ -464,11 +464,11 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 	if (save_list)
 		save_timelist();
 
-	//ì „ í•­ëª© col_remain ë™ê¸°í™” í›„ ì •ë ¬. (load ì§í›„ ë“± stale ì¸ ê²½ìš°ë„ ì•ˆì „)
+	//Àü Ç×¸ñ col_remain µ¿±âÈ­ ÈÄ Á¤·Ä. (load Á÷ÈÄ µî stale ÀÎ °æ¿ìµµ ¾ÈÀü)
 	refresh_remain_and_sort();
 }
 
-//1:13(=1h 13m), 1d 20m(=1ì¼ 20ë¶„) ë“±ì˜ ë¬¸ìì—´ì„ ì´ minutesë¡œ ë³€í™˜í•œë‹¤.
+//1:13(=1h 13m), 1d 20m(=1ÀÏ 20ºĞ) µîÀÇ ¹®ÀÚ¿­À» ÃÑ minutes·Î º¯È¯ÇÑ´Ù.
 int	CTimeListDlg::get_minutes_from_duration_string(CString& duration)
 {
 	int minutes = 0;
@@ -476,8 +476,8 @@ int	CTimeListDlg::get_minutes_from_duration_string(CString& duration)
 	duration.Replace(_T(","), _T(":"));
 	duration.Replace(_T(";"), _T(":"));
 
-	//ìš°ì„  "1.23" ë˜ëŠ” "1 23"ê³¼ ê°™ì´ ì…ë ¥ë˜ë©´ "1h 23m"ê³¼ ê°™ì€ ì •í˜•í™” ëœ í˜•ì‹ìœ¼ë¡œ ë³€í™˜ì‹œì¼œì¤€ë‹¤.
-	//ê·¸ë˜ì•¼ë§Œ ì´ í•¨ìˆ˜ë¥¼ í˜¸ì¶œí•œ ê³³ì—ì„œ ë¦¬ìŠ¤íŠ¸ì— ì¶”ê°€í•  ë•Œë„ ê·¸ í˜•ì‹ìœ¼ë¡œ ì¶”ê°€ëœë‹¤.
+	//¿ì¼± "1.23" ¶Ç´Â "1 23"°ú °°ÀÌ ÀÔ·ÂµÇ¸é "1h 23m"°ú °°Àº Á¤ÇüÈ­ µÈ Çü½ÄÀ¸·Î º¯È¯½ÃÄÑÁØ´Ù.
+	//±×·¡¾ß¸¸ ÀÌ ÇÔ¼ö¸¦ È£ÃâÇÑ °÷¿¡¼­ ¸®½ºÆ®¿¡ Ãß°¡ÇÒ ¶§µµ ±× Çü½ÄÀ¸·Î Ãß°¡µÈ´Ù.
 	if (get_char_count(duration, '.') >= 1 || get_char_count(duration, ' ') >= 1)
 	{
 		CString sep = _T(".");
@@ -493,26 +493,26 @@ int	CTimeListDlg::get_minutes_from_duration_string(CString& duration)
 		}
 	}
 
-	//1d 2h 3mê³¼ ê°™ì€ í˜•ì‹ìœ¼ë¡œ ì…ë ¥í•œ ê²½ìš°
+	//1d 2h 3m°ú °°Àº Çü½ÄÀ¸·Î ÀÔ·ÂÇÑ °æ¿ì
 	if (get_char_count(duration, 'd') == 1 ||
 		get_char_count(duration, 'h') == 1 ||
 		get_char_count(duration, 'm') == 1)
 	{
 		minutes = get_total_minutes_from_dhm(duration);
 	}
-	//1:23 ë˜ëŠ” 1:23:45 ê³¼ ê°™ì€ ì…ë ¥ì€ ë¶„ê¹Œì§€ë§Œ ì˜ë¼ì¤€ë‹¤.
+	//1:23 ¶Ç´Â 1:23:45 °ú °°Àº ÀÔ·ÂÀº ºĞ±îÁö¸¸ Àß¶óÁØ´Ù.
 	else if (get_char_count(duration, ':') >= 1)
 	{
 		std::deque<CString> token;
 		get_token_str(duration, token, _T(":"), false, 2);
 		minutes = _ttoi(token[0]) * 60 + _ttoi(token[1]);
 	}
-	//ë¶„ ë‹¨ìœ„ë¡œë§Œ ì…ë ¥í•œ ê²½ìš°
+	//ºĞ ´ÜÀ§·Î¸¸ ÀÔ·ÂÇÑ °æ¿ì
 	else
 	{
 		if (!IsNatural(duration))
 		{
-			//AfxMessageBox(_T("ë¶„ ë‹¨ìœ„ ë˜ëŠ” hh:mm ë˜ëŠ” 1d 2h 3mê³¼ ê°™ì€ í˜•ì‹ìœ¼ë¡œ ì…ë ¥í•˜ì„¸ìš”."), MB_ICONEXCLAMATION);
+			//AfxMessageBox(_T("ºĞ ´ÜÀ§ ¶Ç´Â hh:mm ¶Ç´Â 1d 2h 3m°ú °°Àº Çü½ÄÀ¸·Î ÀÔ·ÂÇÏ¼¼¿ä."), MB_ICONEXCLAMATION);
 			return -1;
 		}
 
@@ -537,8 +537,8 @@ void CTimeListDlg::load_timelist()
 		{
 			if (sz == sizeof(CAlarmItem))
 			{
-				//add()ì—ì„œ listì— í‘œì‹œë„ í•˜ê³  m_itemì—ë„ ì¶”ê°€í•˜ì§€ë§Œ save_timelist()ëŠ” í˜¸ì¶œí•˜ì§€ ì•Šì•„ì•¼ í•œë‹¤.
-				//add()ë¥¼ ì“°ìë‹ˆ tStartë„ ë³„ë„ë¡œ ì²˜ë¦¬í•´ì•¼í•˜ê³  ë³µì¡í•´ì§„ë‹¤. ê°€ê³µí•´ì„œ ë¦¬ìŠ¤íŠ¸ì— ë„£ì–´ì£¼ì.
+				//add()¿¡¼­ list¿¡ Ç¥½Ãµµ ÇÏ°í m_item¿¡µµ Ãß°¡ÇÏÁö¸¸ save_timelist()´Â È£ÃâÇÏÁö ¾Ê¾Æ¾ß ÇÑ´Ù.
+				//add()¸¦ ¾²ÀÚ´Ï tStartµµ º°µµ·Î Ã³¸®ÇØ¾ßÇÏ°í º¹ÀâÇØÁø´Ù. °¡°øÇØ¼­ ¸®½ºÆ®¿¡ ³Ö¾îÁÖÀÚ.
 				//add(item->title, get_time_str(item->ts_duration.GetTotalSeconds()), false, item->is_floating, false);
 				int index = m_list.insert_item(-1, 0, item->title,
 												get_time_str(item->start),
@@ -548,7 +548,7 @@ void CTimeListDlg::load_timelist()
 												get_date_str(item->start));
 				m_list.SetItemData(index, reinterpret_cast<DWORD_PTR>(item));
 			}
-			//ì´ í”„ë¡œì íŠ¸ì—ì„œëŠ” GetProfileBinary()ë¡œ ì–»ì–´ì˜¨ ê°’ì„ ê³„ì† ì‚¬ìš©í•´ì•¼ í•˜ë¯€ë¡œ ì§€ì›Œì„œëŠ” ì•ˆëœë‹¤.
+			//ÀÌ ÇÁ·ÎÁ§Æ®¿¡¼­´Â GetProfileBinary()·Î ¾ò¾î¿Â °ªÀ» °è¼Ó »ç¿ëÇØ¾ß ÇÏ¹Ç·Î Áö¿ö¼­´Â ¾ÈµÈ´Ù.
 			//delete[] reinterpret_cast<BYTE*>(item);
 		}
 	}
@@ -558,8 +558,8 @@ void CTimeListDlg::load_timelist()
 
 void CTimeListDlg::ensure_floating()
 {
-	//ë‚¨ì€ì‹œê°„ì´ ê°€ì¥ ì§§ì€ *ì–‘ì˜* í•­ëª© 1ê°œë§Œ floating, ë‚˜ë¨¸ì§€ëŠ” ëª¨ë‘ floating í•´ì œ.
-	//ì–‘ì˜ remain í•­ëª©ì´ í•˜ë‚˜ë„ ì—†ìœ¼ë©´ ì–´ë–¤ í•­ëª©ë„ floating ë˜ì§€ ì•ŠëŠ”ë‹¤.
+	//³²Àº½Ã°£ÀÌ °¡Àå ÂªÀº *¾çÀÇ* Ç×¸ñ 1°³¸¸ floating, ³ª¸ÓÁö´Â ¸ğµÎ floating ÇØÁ¦.
+	//¾çÀÇ remain Ç×¸ñÀÌ ÇÏ³ªµµ ¾øÀ¸¸é ¾î¶² Ç×¸ñµµ floating µÇÁö ¾Ê´Â´Ù.
 	if (m_list.size() == 0)
 		return;
 
@@ -602,14 +602,14 @@ void CTimeListDlg::ensure_floating()
 
 void CTimeListDlg::refresh_remain_and_sort()
 {
-	//col_remain ì€ default text ì»¬ëŸ¼ì´ë¼ CVtListCtrlEx::sort ì˜ _ttof / ì‚¬ì „ì‹ ë¹„êµë¡œëŠ”
-	//"HH:MM:SS" í˜•ì‹ì„ ì •í™•íˆ ì¤„ì„¸ìš¸ ìˆ˜ ì—†ë‹¤. ë”°ë¼ì„œ ì§ì ‘ std::sort + lambda ë¡œ ì •ë ¬í•œë‹¤.
-	//í‚¤ëŠ” (start + ts_duration - now) ì˜ total seconds. ê°€ì¥ ê°€ê¹Œìš´ ì•ŒëŒì´ ìœ„ë¡œ (ì˜¤ë¦„ì°¨ìˆœ).
+	//col_remain Àº default text ÄÃ·³ÀÌ¶ó CVtListCtrlEx::sort ÀÇ _ttof / »çÀü½Ä ºñ±³·Î´Â
+	//"HH:MM:SS" Çü½ÄÀ» Á¤È®È÷ ÁÙ¼¼¿ï ¼ö ¾ø´Ù. µû¶ó¼­ Á÷Á¢ std::sort + lambda ·Î Á¤·ÄÇÑ´Ù.
+	//Å°´Â (start + ts_duration - now) ÀÇ total seconds. °¡Àå °¡±î¿î ¾Ë¶÷ÀÌ À§·Î (¿À¸§Â÷¼ø).
 	int n = m_list.size();
 	if (n == 0)
 		return;
 
-	//í•­ëª©ì´ 1ê°œë¿ì´ë©´ ì •ë ¬ì€ ì˜ë¯¸ ì—†ì§€ë§Œ floating ë³´ì¥ì€ í•„ìš”.
+	//Ç×¸ñÀÌ 1°³»ÓÀÌ¸é Á¤·ÄÀº ÀÇ¹Ì ¾øÁö¸¸ floating º¸ÀåÀº ÇÊ¿ä.
 	if (n == 1)
 	{
 		ensure_floating();
@@ -643,8 +643,8 @@ void CTimeListDlg::refresh_remain_and_sort()
 
 	m_list.SetRedraw(FALSE);
 
-	//ì •ë ¬ëœ ìˆœì„œëŒ€ë¡œ ë¦¬ìŠ¤íŠ¸ ì¬êµ¬ì„±. delete_all_items ëŠ” m_list_db ë§Œ ë¹„ìš°ê³ 
-	//ê° ë¼ì¸ì˜ data(=CAlarmItem*) ëŠ” í•´ì œí•˜ì§€ ì•Šìœ¼ë¯€ë¡œ í¬ì¸í„° ê·¸ëŒ€ë¡œ ì¬ì‚½ì… ê°€ëŠ¥.
+	//Á¤·ÄµÈ ¼ø¼­´ë·Î ¸®½ºÆ® Àç±¸¼º. delete_all_items ´Â m_list_db ¸¸ ºñ¿ì°í
+	//°¢ ¶óÀÎÀÇ data(=CAlarmItem*) ´Â ÇØÁ¦ÇÏÁö ¾ÊÀ¸¹Ç·Î Æ÷ÀÎÅÍ ±×´ë·Î Àç»ğÀÔ °¡´É.
 	m_list.delete_all_items();
 	for (const auto& r : rows)
 	{
@@ -681,7 +681,7 @@ void CTimeListDlg::save_timelist()
 
 LRESULT CTimeListDlg::OnNcHitTest(CPoint point)
 {
-	// TODO: ì—¬ê¸°ì— ë©”ì‹œì§€ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€ ë°/ë˜ëŠ” ê¸°ë³¸ê°’ì„ í˜¸ì¶œí•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ¸Ş½ÃÁö Ã³¸®±â ÄÚµå¸¦ Ãß°¡ ¹×/¶Ç´Â ±âº»°ªÀ» È£ÃâÇÕ´Ï´Ù.
 	LRESULT result = CDialogEx::OnNcHitTest(point);
 
 	if (result == HTCLIENT)
@@ -699,7 +699,7 @@ LRESULT CTimeListDlg::OnNcHitTest(CPoint point)
 
 void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 {
-	// TODO: ì—¬ê¸°ì— ë©”ì‹œì§€ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€ ë°/ë˜ëŠ” ê¸°ë³¸ê°’ì„ í˜¸ì¶œí•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ¸Ş½ÃÁö Ã³¸®±â ÄÚµå¸¦ Ãß°¡ ¹×/¶Ç´Â ±âº»°ªÀ» È£ÃâÇÕ´Ï´Ù.
 	CTime	t = CTime::GetCurrentTime();
 	bool	has_floating = false;
 
@@ -716,26 +716,28 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 		LONGLONG remain_seconds = remain.GetTotalSeconds();
 		CString str;
 
-		//24ì‹œê°„ ë„˜ê²Œ ë‚¨ì•˜ë‹¤ë©´ "nì¼ mì‹œê°„"ìœ¼ë¡œ í‘œê¸°.
+		//24½Ã°£ ³Ñ°Ô ³²¾Ò´Ù¸é "nÀÏ m½Ã°£"À¸·Î Ç¥±â.
 		if (remain.GetTotalHours() > 24)
-			str.Format(_T("%dì¼ %dì‹œê°„"), remain.GetDays(), remain.GetHours());
+			str.Format(_T("%dÀÏ %d½Ã°£"), remain.GetDays(), remain.GetHours());
 		else
 			str = get_time_str(remain.GetTotalSeconds());
 
-		//ë‚¨ì€ ì‹œê°„ì— ê´€ê³„ì—†ì´ ë‚¨ì€ ì‹œê°ì€ ê³„ì† ë³€ê²½ë˜ì–´ì•¼ í•œë‹¤.
+		//³²Àº ½Ã°£¿¡ °ü°è¾øÀÌ ³²Àº ½Ã°¢Àº °è¼Ó º¯°æµÇ¾î¾ß ÇÑ´Ù.
 		if (item->is_floating)
 		{
 			CSCShapeDlgTextSetting* setting = m_floating.get_text_setting();
 			setting->text = str;
 			m_floating.set_text(setting);
-			m_floating.save_image(_T("D:\\floating.png"));
+#ifdef _DEBUG
+			//m_floating.save(_T("D:\\floating.png"));
+#endif
 		}
 
-		//ì—­ì‹œ ë‚¨ì€ ì‹œê°ë„ ê³„ì† ë³€ê²½ë˜ì–´ì•¼ í•œë‹¤.
+		//¿ª½Ã ³²Àº ½Ã°¢µµ °è¼Ó º¯°æµÇ¾î¾ß ÇÑ´Ù.
 		m_list.set_text(i, col_remain, get_time_str(remain_seconds));
 
 
-		//í•´ë‹¹ ì‹œê°ì´ë©´ ì•Œë¦¼ì„ ë ì›Œì£¼ê³ 
+		//ÇØ´ç ½Ã°¢ÀÌ¸é ¾Ë¸²À» ¶ì¿öÁÖ°í
 		if (remain_seconds == 0)
 		{
 			::MessageBeep(MB_ICONEXCLAMATION);
@@ -743,14 +745,14 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 		}
 		else if (remain_seconds < 0)
 		{
-			//ì´ˆê³¼ëœ í•­ëª©ì€ ìƒ‰ìƒì„ ë¶‰ê²Œ í‘œì‹œí•˜ê³ 
+			//ÃÊ°úµÈ Ç×¸ñÀº »ö»óÀ» ºÓ°Ô Ç¥½ÃÇÏ°í
 			m_list.set_text_color(i, -1, Gdiplus::Color(128, 96, 16));
 			if (item->is_floating)
 			{
 				m_floating.set_text_color(Gdiplus::Color(128, 128, 96, 16));
 			}
 
-			//10ë¶„ì´ ì§€ë‚¬ë‹¤ë©´ ëª©ë¡ì—ì„œ ì™„ì „ ì‚­ì œí•œë‹¤.
+			//10ºĞÀÌ Áö³µ´Ù¸é ¸ñ·Ï¿¡¼­ ¿ÏÀü »èÁ¦ÇÑ´Ù.
 			if (remain_seconds < -600)
 			{
 				if (item->is_floating)
@@ -784,7 +786,7 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 	int day_of_week = t.GetDayOfWeek();
 	if ((day_of_week == 2 || day_of_week == 6) && (t.GetHour() == 8 && t.GetMinute() == 55 && t.GetSecond() == 0))
 	{
-		m_msgbox.DoModal(_T("íŠ¹ì • ìš”ì¼ ë° ì‹œê° ì•Œë¦¼!"));
+		m_msgbox.DoModal(_T("Æ¯Á¤ ¿äÀÏ ¹× ½Ã°¢ ¾Ë¸²!"));
 	}
 
 	m_floating.ShowWindow(has_floating ? SW_SHOW : SW_HIDE);
@@ -796,7 +798,7 @@ void CTimeListDlg::OnActivateApp(BOOL bActive, DWORD dwThreadID)
 {
 	CDialogEx::OnActivateApp(bActive, dwThreadID);
 
-	// TODO: ì—¬ê¸°ì— ë©”ì‹œì§€ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€í•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ¸Ş½ÃÁö Ã³¸®±â ÄÚµå¸¦ Ãß°¡ÇÕ´Ï´Ù.
 	if (GetOwner())
 		GetOwner()->SendMessage(WM_ACTIVATEAPP, (WPARAM)bActive, (LPARAM)dwThreadID);
 }
@@ -827,7 +829,7 @@ void CTimeListDlg::OnMenuResetStartTime()
 	CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected);
 	if (item->is_locked)
 	{
-		m_msgbox.set_message(_T("ì ê¸´ í•­ëª©ì…ë‹ˆë‹¤."), MB_OK, 1);
+		m_msgbox.set_message(_T("Àá±ä Ç×¸ñÀÔ´Ï´Ù."), MB_OK, 1);
 		return;
 	}
 
@@ -847,7 +849,7 @@ void CTimeListDlg::OnMenuFloating()
 	CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected);
 	item->is_floating = !item->is_floating;
 
-	//ì„ íƒ ì´ì™¸ í•­ëª©ë“¤ì€ floating falseë¡œ ë§Œë“ ë‹¤.
+	//¼±ÅÃ ÀÌ¿Ü Ç×¸ñµéÀº floating false·Î ¸¸µç´Ù.
 	for (int i = 0; i < m_list.size(); i++)
 	{
 		if (i != selected)
@@ -904,7 +906,7 @@ void CTimeListDlg::OnMenuDelete()
 	std::deque<int> selected;
 	m_list.get_selected_items(&selected);
 
-	//ì¤‘ê°„ í•­ëª©ì´ ì‚­ì œë˜ì–´ë„ ì¸ë±ìŠ¤ê°€ ìœ ì§€ë˜ë„ë¡ ë’¤ì—ì„œë¶€í„° ì‚­ì œí•œë‹¤.
+	//Áß°£ Ç×¸ñÀÌ »èÁ¦µÇ¾îµµ ÀÎµ¦½º°¡ À¯ÁöµÇµµ·Ï µÚ¿¡¼­ºÎÅÍ »èÁ¦ÇÑ´Ù.
 	for (int i = selected.size() - 1; i >= 0; i--)
 	{
 		CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected[i]);
@@ -920,7 +922,7 @@ void CTimeListDlg::OnMenuDelete()
 	}
 
 	save_timelist();
-	//ë‚¨ì€ í•­ëª© ì¤‘ ê°€ì¥ ì„ë°•í•œ(ì–‘ì˜) í•­ëª©ì„ floating ìœ¼ë¡œ ìŠ¹ê²©.
+	//³²Àº Ç×¸ñ Áß °¡Àå ÀÓ¹ÚÇÑ(¾çÀÇ) Ç×¸ñÀ» floating À¸·Î ½Â°İ.
 	ensure_floating();
 }
 
@@ -954,7 +956,7 @@ void CTimeListDlg::on_menu_favorites(UINT nID)
 void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	NMLVDISPINFO* pDispInfo = reinterpret_cast<NMLVDISPINFO*>(pNMHDR);
-	// TODO: ì—¬ê¸°ì— ì»¨íŠ¸ë¡¤ ì•Œë¦¼ ì²˜ë¦¬ê¸° ì½”ë“œë¥¼ ì¶”ê°€í•©ë‹ˆë‹¤.
+	// TODO: ¿©±â¿¡ ÄÁÆ®·Ñ ¾Ë¸² Ã³¸®±â ÄÚµå¸¦ Ãß°¡ÇÕ´Ï´Ù.
 	int item = m_list.get_recent_edit_item();
 	int sub_item = m_list.get_recent_edit_subitem();
 	CString	text = m_list.get_text(item, sub_item);
@@ -968,11 +970,11 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 	}
 	else if (sub_item == col_start)
 	{
-		// ì ˆëŒ€ ì‹œê° ì…ë ¥ í•´ì„ (HH:MM:SS):
-		//   ìˆœìˆ˜ ìˆ«ì 1~2ìë¦¬ â†’ ì¢Œì¸¡ 0 íŒ¨ë”© â†’ HH       (ì˜ˆ: "9"      â†’ 09:00:00)
-		//   ìˆœìˆ˜ ìˆ«ì 3~4ìë¦¬ â†’ ì¢Œì¸¡ 0 íŒ¨ë”© â†’ HHMM     (ì˜ˆ: "1234"   â†’ 12:34:00)
-		//   ìˆœìˆ˜ ìˆ«ì 5~6ìë¦¬ â†’ ì¢Œì¸¡ 0 íŒ¨ë”© â†’ HHMMSS   (ì˜ˆ: "123456" â†’ 12:34:56)
-		//   ì½œë¡  í˜•ì‹("12:34", "12:34:56" ë“±)ì€ ê·¸ëŒ€ë¡œ get_CTime_from_datetime_str ì— ì „ë‹¬.
+		// Àı´ë ½Ã°¢ ÀÔ·Â ÇØ¼® (HH:MM:SS):
+		//   ¼ø¼ö ¼ıÀÚ 1~2ÀÚ¸® ¡æ ÁÂÃø 0 ÆĞµù ¡æ HH       (¿¹: "9"      ¡æ 09:00:00)
+		//   ¼ø¼ö ¼ıÀÚ 3~4ÀÚ¸® ¡æ ÁÂÃø 0 ÆĞµù ¡æ HHMM     (¿¹: "1234"   ¡æ 12:34:00)
+		//   ¼ø¼ö ¼ıÀÚ 5~6ÀÚ¸® ¡æ ÁÂÃø 0 ÆĞµù ¡æ HHMMSS   (¿¹: "123456" ¡æ 12:34:56)
+		//   Äİ·Ğ Çü½Ä("12:34", "12:34:56" µî)Àº ±×´ë·Î get_CTime_from_datetime_str ¿¡ Àü´Ş.
 		if (IsNatural(text) && text.GetLength() >= 1 && text.GetLength() <= 6)
 		{
 			int len = text.GetLength();
@@ -993,10 +995,10 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 	}
 	else if (sub_item == col_duration)
 	{
-		// ì…ë ¥ í•´ì„ ê·œì¹™:
-		//   "H:M:S" / "M:S" ì½œë¡  í˜•ì‹    â†’ ì‹œ:ë¶„:ì´ˆ
-		//   ìˆœìˆ˜ ìˆ«ì 6ìë¦¬              â†’ HHMMSS (ì˜ˆ: "000015" â†’ 15ì´ˆ)
-		//   ê·¸ ì™¸ ìˆœìˆ˜ ìˆ«ì              â†’ ë¶„ ë‹¨ìœ„ (ì˜ˆ: "15" â†’ 15ë¶„, "115" â†’ 115ë¶„)
+		// ÀÔ·Â ÇØ¼® ±ÔÄ¢:
+		//   "H:M:S" / "M:S" Äİ·Ğ Çü½Ä    ¡æ ½Ã:ºĞ:ÃÊ
+		//   ¼ø¼ö ¼ıÀÚ 6ÀÚ¸®              ¡æ HHMMSS (¿¹: "000015" ¡æ 15ÃÊ)
+		//   ±× ¿Ü ¼ø¼ö ¼ıÀÚ              ¡æ ºĞ ´ÜÀ§ (¿¹: "15" ¡æ 15ºĞ, "115" ¡æ 115ºĞ)
 		CString t = text;
 		t.Trim();
 
@@ -1048,7 +1050,7 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 	}
 	else if (sub_item == col_end)
 	{
-		// ì ˆëŒ€ ì‹œê° ì…ë ¥ í•´ì„ (col_start ì™€ ë™ì¼ ê·œì¹™).
+		// Àı´ë ½Ã°¢ ÀÔ·Â ÇØ¼® (col_start ¿Í µ¿ÀÏ ±ÔÄ¢).
 		if (IsNatural(text) && text.GetLength() >= 1 && text.GetLength() <= 6)
 		{
 			int len = text.GetLength();
@@ -1064,7 +1066,7 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 
 		CTime tEnd = get_CTime_from_datetime_str(_T(""), text);
 
-		// ì¢…ë£Œ ì‹œê°ì´ ì‹œì‘ ì‹œê°ë³´ë‹¤ ì´ë¥´ë©´ ë‹¤ìŒ ë‚ ì„ ì˜ë„í•œ ê²ƒìœ¼ë¡œ ë³´ê³  +1ì¼ ë³´ì •.
+		// Á¾·á ½Ã°¢ÀÌ ½ÃÀÛ ½Ã°¢º¸´Ù ÀÌ¸£¸é ´ÙÀ½ ³¯À» ÀÇµµÇÑ °ÍÀ¸·Î º¸°í +1ÀÏ º¸Á¤.
 		if (tEnd < data->start)
 			tEnd += CTimeSpan(1, 0, 0, 0);
 
@@ -1075,7 +1077,7 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 
 	save_timelist();
 
-	//ì „ í•­ëª© col_remain ë™ê¸°í™” í›„ ì •ë ¬.
+	//Àü Ç×¸ñ col_remain µ¿±âÈ­ ÈÄ Á¤·Ä.
 	refresh_remain_and_sort();
 
 	*pResult = 0;
