@@ -111,6 +111,12 @@
     <ClInclude Include="..\Common\CEdit\CSCStaticEdit\SCStaticEdit.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\CScrollbar\SCScrollbar\SCScrollbar.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CScrollbar\ScrollHelper.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MiniClock2.cpp">
@@ -192,6 +198,12 @@
       <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\CEdit\CSCStaticEdit\SCStaticEdit.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CScrollbar\SCScrollbar\SCScrollbar.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CScrollbar\ScrollHelper.cpp">
       <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
