@@ -89,7 +89,7 @@ BOOL CTimeListDlg::OnInitDialog()
 	init_list();
 
 	m_resize.Create(this);
-	m_resize.SetMinimumTrackingSize(CSize(452, 112));
+	m_resize.SetMinimumTrackingSize(CSize(400, 100));
 	m_resize.Add(IDC_CHECK_AUTO_HIDE, 100, 0, 0, 0);
 	m_resize.Add(IDC_LIST_TIME, 0, 0, 100, 100);
 

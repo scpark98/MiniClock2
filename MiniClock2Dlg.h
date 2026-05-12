@@ -35,6 +35,7 @@ protected:
 		timer_convert_ime = 0,	//주로 한글 입력을 많이하므로 앱이 시작되면 한글로 자동 변경해준다.
 		timer_time,
 		timer_gpu_temperature,
+		timer_on_top,
 	};
 
 	CSysTrayIcon		m_sys_tray;

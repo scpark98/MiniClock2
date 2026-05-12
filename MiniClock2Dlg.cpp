@@ -180,6 +180,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	SetTimer(timer_convert_ime, 1000, NULL);
 	SetTimer(timer_time, 1000, NULL);
 	SetTimer(timer_gpu_temperature, 500, NULL);
+	SetTimer(timer_on_top, 5000, NULL);
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
@@ -465,6 +466,12 @@ void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)
 	if (nIDEvent == timer_time)
 	{
 		rebuild_image();
+	}
+	else if (nIDEvent == timer_on_top)
+	{
+		KillTimer(timer_on_top);
+		bool onTop = theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
+		SetWindowPos(onTop ? &wndTopMost : &wndNoTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	}
 	else if (nIDEvent == timer_gpu_temperature)
 	{
