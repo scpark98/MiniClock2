@@ -77,6 +77,7 @@ BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_WM_WINDOWPOSCHANGING()
 	ON_WM_WINDOWPOSCHANGED()
+	ON_WM_DISPLAYCHANGE()
 	ON_BN_CLICKED(IDOK, &CMiniClock2Dlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDCANCEL, &CMiniClock2Dlg::OnBnClickedCancel)
 	ON_WM_CONTEXTMENU()
@@ -182,6 +183,10 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	SetTimer(timer_gpu_temperature, 500, NULL);
 	SetTimer(timer_on_top, 5000, NULL);
 
+	//현재 모니터 개수를 정상 상태로 기록. 이후 WM_DISPLAYCHANGE 에서 줄어들면 lock.
+	enum_display_monitors();
+	m_monitor_count_normal = (int)g_monitors.size();
+
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
 
@@ -284,6 +289,10 @@ void CMiniClock2Dlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)
 	// 이때 SaveWindowPosition 이 실행되면 다음 부팅에 보이지 않는 좌표가 복원된다.
 	// 1) 숨김 이벤트 제외.
 	if (lpwndpos && (lpwndpos->flags & SWP_HIDEWINDOW))
+		return;
+
+	//모니터 off 상태에서 OS 가 강제로 옮긴 좌표는 저장 금지.
+	if (m_position_save_locked)
 		return;
 
 	// 2) 창이 실제 visible monitor 위에 있는지 검증. phantom(HDMI 오디오 등) 영역이거나
@@ -571,7 +580,27 @@ void CMiniClock2Dlg::OnMenuViewTimeList()
 
 void CMiniClock2Dlg::OnMenuResetTimeListPos()
 {
-	// TODO: 여기에 명령 처리기 코드를 추가합니다.
+	//사용자가 명시적으로 호출 — TimeListDlg 를 primary monitor 의 작업영역 중앙으로 이동시키고
+	//그 좌표를 즉시 레지스트리에 저장. lock 상태와 무관하게 강제 저장.
+	CRect rc_work;
+	SystemParametersInfo(SPI_GETWORKAREA, 0, &rc_work, 0);
+
+	CRect rc_dlg;
+	m_timelistDlg.GetWindowRect(&rc_dlg);
+
+	int cx = rc_work.CenterPoint().x - rc_dlg.Width() / 2;
+	int cy = rc_work.CenterPoint().y - rc_dlg.Height() / 2;
+
+	bool was_locked = m_position_save_locked;
+	m_position_save_locked = false;
+
+	m_timelistDlg.SetWindowPos(NULL, cx, cy, 0, 0,
+		SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+
+	if (!m_timelistDlg.IsWindowVisible())
+		m_timelistDlg.ShowWindow(SW_SHOW);
+
+	m_position_save_locked = was_locked;
 }
 
 void CMiniClock2Dlg::OnMenuAlarmAfterMinutes()
@@ -796,4 +825,24 @@ LRESULT CMiniClock2Dlg::OnTaskbarCreated(WPARAM, LPARAM)
 	rebuild_image();
 	Invalidate(false);
 	return 0;
+}
+
+//모니터 on/off, 해상도 변경, 디스플레이 추가/제거 시 호출.
+//현재 모니터 개수가 정상 시점보다 *적으면* 위치 저장을 lock — OS 가 visible 모니터로
+//자동 reposition 한 좌표가 레지스트리에 저장되어 다음 부팅에 잘못된 모니터에서 뜨는 것을 방지.
+//개수가 회복되면 lock 해제하고 정상 개수를 그대로 유지 (혹은 더 늘었으면 갱신).
+void CMiniClock2Dlg::OnDisplayChange(UINT /*uBitsPerPixel*/, int /*cxScreen*/, int /*cyScreen*/)
+{
+	enum_display_monitors();
+	int cur = (int)g_monitors.size();
+
+	if (cur < m_monitor_count_normal)
+	{
+		m_position_save_locked = true;
+	}
+	else
+	{
+		m_position_save_locked = false;
+		m_monitor_count_normal = cur;
+	}
 }

@@ -64,6 +64,16 @@ protected:
 
 	CString				m_system_shutdown;	//종료 시각(ex. "2350")
 
+	//모니터를 끄면 OS 가 사라진 모니터의 윈도우들을 visible 모니터로 자동 reposition 한다.
+	//그 시점에 OnWindowPosChanged 가 발생해 의도치 않은 좌표가 레지스트리에 저장되면
+	//다음 부팅 시 원치 않는 모니터에서 윈도우가 뜬다.
+	//현재 모니터 개수가 "정상 시점 개수" 보다 적은 동안에는 위치 저장을 lock 한다.
+	int					m_monitor_count_normal = 0;
+	bool				m_position_save_locked = false;
+public:
+	bool				is_position_save_locked() const { return m_position_save_locked; }
+protected:
+
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 지원입니다.
 
@@ -110,4 +120,6 @@ public:
 	// Explorer 크래시 후 재시작에도 동일하게 사용.
 	static UINT s_msg_taskbar_created;
 	afx_msg LRESULT OnTaskbarCreated(WPARAM wParam, LPARAM lParam);
+
+	afx_msg void OnDisplayChange(UINT uBitsPerPixel, int cxScreen, int cyScreen);
 };
