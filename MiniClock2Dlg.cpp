@@ -103,6 +103,11 @@ BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	ON_MESSAGE(WM_SYSTRAYMSG, &CMiniClock2Dlg::on_message_CSysTrayIcon)
 	ON_COMMAND(ID_MENU_NVIDIA_INFO, &CMiniClock2Dlg::OnMenuNvidiaInfo)
 	ON_REGISTERED_MESSAGE(s_msg_taskbar_created, &CMiniClock2Dlg::OnTaskbarCreated)
+	ON_WM_POWERBROADCAST()
+	ON_WM_QUERYENDSESSION()
+	ON_WM_ENDSESSION()
+	ON_WM_DESTROY()
+	ON_REGISTERED_MESSAGE(Message_CSCShapeDlg, &CMiniClock2Dlg::on_message_CSCShapeDlg)
 END_MESSAGE_MAP()
 
 
@@ -153,6 +158,21 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	//출처: http://greenbblog.tistory.com/entry/wtl-dialog-hide-taskbar [그린마톩E[시햨E]]
 
 
+	//1회성 마이그레이션: 과거에 모니터 off / phantom audio 모니터로 굳어버린 좌표를 일괄 reset.
+	//이번 빌드부터 SaveWindowPosition 이 monitor fingerprint 를 함께 저장하므로 다음 save 시점부터
+	//fingerprint 가 들어가고 이후 Restore 는 fingerprint 매칭으로 phantom 좌표를 거른다.
+	//*반드시* m_timelistDlg.Create() 보다 앞에서 실행 — TimeListDlg::OnInitDialog 가 자기/자식의
+	//RestoreWindowPosition 을 즉시 호출하므로 그 전에 phantom section 들이 비워져 있어야 한다.
+	int pos_ver = theApp.GetProfileInt(_T("schema"), _T("position_version"), 0);
+	if (pos_ver < 2)
+	{
+		theApp.WriteProfileString(_T("screen"), NULL, NULL);
+		theApp.WriteProfileString(_T("m_temperature\\screen"), NULL, NULL);
+		theApp.WriteProfileString(_T("TimeListDlg\\screen"), NULL, NULL);
+		theApp.WriteProfileString(_T("TimeListDlg\\m_floating\\screen"), NULL, NULL);
+		theApp.WriteProfileInt(_T("schema"), _T("position_version"), 2);
+	}
+
 	m_timelistDlg.Create(IDD_TIME_LIST, this);
 
 	m_msgbox.create(this, _T("MiniClock2"), IDR_MAINFRAME);
@@ -186,6 +206,10 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	//현재 모니터 개수를 정상 상태로 기록. 이후 WM_DISPLAYCHANGE 에서 줄어들면 lock.
 	enum_display_monitors();
 	m_monitor_count_normal = (int)g_monitors.size();
+
+	//WM_DISPLAYCHANGE 는 OS 의 윈도우 reposition 보다 늦게 와서 race 가 있다.
+	//모니터 DPMS off 는 PBT_POWERSETTINGCHANGE 로 더 먼저 잡힌다. lock 활성화 신호로 사용.
+	m_hpwr_monitor = RegisterPowerSettingNotification(m_hWnd, &GUID_MONITOR_POWER_ON, DEVICE_NOTIFY_WINDOW_HANDLE);
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
@@ -281,40 +305,44 @@ void CMiniClock2Dlg::OnWindowPosChanging(WINDOWPOS* lpwndpos)
 	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
 }
 
+//종료/콜백/메시지 등 모든 save 진입점에서 공통으로 사용. lock + visible + monitor + work-area intersect 통합.
+//OS 가 모니터 off / 종료 sequence 중에 윈도우를 phantom 영역으로 옮긴 좌표가 굳지 않도록.
+bool CMiniClock2Dlg::should_skip_position_save(CWnd* pWnd) const
+{
+	if (m_position_save_locked)
+		return true;
+
+	if (!pWnd || !pWnd->GetSafeHwnd() || !pWnd->IsWindowVisible() || pWnd->IsIconic())
+		return true;
+
+	CRect rc;
+	pWnd->GetWindowRect(&rc);
+	if (rc.Width() <= 0 || rc.Height() <= 0)
+		return true;
+
+	HMONITOR hMon = MonitorFromRect(&rc, MONITOR_DEFAULTTONULL);
+	if (hMon == NULL)
+		return true;
+
+	MONITORINFO mi = { sizeof(mi) };
+	if (!GetMonitorInfo(hMon, &mi))
+		return true;
+
+	CRect inter;
+	if (!inter.IntersectRect(rc, CRect(mi.rcWork)) || inter.Width() < 20 || inter.Height() < 20)
+		return true;
+
+	return false;
+}
+
 void CMiniClock2Dlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)
 {
 	CDialogEx::OnWindowPosChanged(lpwndpos);
 
-	// 시스템 종료/세션 엔드 중에는 창이 숨겨지거나 phantom display 로 튕겨질 수 있다.
-	// 이때 SaveWindowPosition 이 실행되면 다음 부팅에 보이지 않는 좌표가 복원된다.
-	// 1) 숨김 이벤트 제외.
 	if (lpwndpos && (lpwndpos->flags & SWP_HIDEWINDOW))
 		return;
 
-	//모니터 off 상태에서 OS 가 강제로 옮긴 좌표는 저장 금지.
-	if (m_position_save_locked)
-		return;
-
-	// 2) 창이 실제 visible monitor 위에 있는지 검증. phantom(HDMI 오디오 등) 영역이거나
-	//    어떤 모니터에도 속하지 않으면 저장하지 않는다.
-	CRect rc;
-	GetWindowRect(&rc);
-
-	if (rc.Width() <= 0 || rc.Height() <= 0)
-		return;
-
-	HMONITOR hMon = MonitorFromRect(&rc, MONITOR_DEFAULTTONULL);
-	if (hMon == NULL)
-		return;
-
-	MONITORINFO mi = { sizeof(mi) };
-	if (!GetMonitorInfo(hMon, &mi))
-		return;
-
-	// 저장된 창 좌표는 다음 부팅 시 복원에 쓰이므로 실 작업 영역에 충분히 들어오는지 확인.
-	CRect work(mi.rcWork);
-	CRect inter;
-	if (!inter.IntersectRect(rc, work) || inter.Width() < 20 || inter.Height() < 20)
+	if (should_skip_position_save(this))
 		return;
 
 	SaveWindowPosition(&theApp, this);
@@ -333,7 +361,8 @@ void CMiniClock2Dlg::OnBnClickedCancel()
 	if (AfxMessageBox(_T("MiniClock2를 종료합니다"), MB_YESNO) == IDNO)
 		return;
 
-	SaveWindowPosition(&theApp, &m_temperature, _T("m_temperature"));
+	if (!should_skip_position_save(&m_temperature))
+		SaveWindowPosition(&theApp, &m_temperature, _T("m_temperature"));
 
 	save_setting();
 
@@ -828,9 +857,7 @@ LRESULT CMiniClock2Dlg::OnTaskbarCreated(WPARAM, LPARAM)
 }
 
 //모니터 on/off, 해상도 변경, 디스플레이 추가/제거 시 호출.
-//현재 모니터 개수가 정상 시점보다 *적으면* 위치 저장을 lock — OS 가 visible 모니터로
-//자동 reposition 한 좌표가 레지스트리에 저장되어 다음 부팅에 잘못된 모니터에서 뜨는 것을 방지.
-//개수가 회복되면 lock 해제하고 정상 개수를 그대로 유지 (혹은 더 늘었으면 갱신).
+//OS 의 윈도우 reposition 보다 늦게 오는 경우가 있어 단독으로는 race 가 있다. 그래도 fallback 으로 유지.
 void CMiniClock2Dlg::OnDisplayChange(UINT /*uBitsPerPixel*/, int /*cxScreen*/, int /*cyScreen*/)
 {
 	enum_display_monitors();
@@ -845,4 +872,67 @@ void CMiniClock2Dlg::OnDisplayChange(UINT /*uBitsPerPixel*/, int /*cxScreen*/, i
 		m_position_save_locked = false;
 		m_monitor_count_normal = cur;
 	}
+}
+
+//모니터 DPMS off / 시스템 standby 신호. WM_DISPLAYCHANGE 보다 먼저 와서 OS 의 phantom reposition
+//전에 lock 활성화 가능. GUID_MONITOR_POWER_ON.Data[0] == 0 이면 monitor off.
+UINT CMiniClock2Dlg::OnPowerBroadcast(UINT nPowerEvent, LPARAM lEventData)
+{
+	if (nPowerEvent == PBT_POWERSETTINGCHANGE && lEventData != 0)
+	{
+		POWERBROADCAST_SETTING* p = (POWERBROADCAST_SETTING*)lEventData;
+		if (p->PowerSetting == GUID_MONITOR_POWER_ON && p->DataLength >= sizeof(DWORD))
+		{
+			DWORD on = *(DWORD*)p->Data;
+			if (on == 0)
+				m_position_save_locked = true;
+			//on 일 때는 lock 해제하지 않는다 — DPMS on 직후 OS 가 곧바로 정상 desktop 으로
+			//복귀시키는 위치 이벤트들이 lock 해제와 동시에 새 좌표를 굳힐 수 있다.
+			//WM_DISPLAYCHANGE 가 모니터 개수 회복을 확인하면 거기서 해제.
+		}
+	}
+	else if (nPowerEvent == PBT_APMSUSPEND)
+	{
+		m_position_save_locked = true;
+	}
+
+	return CDialogEx::OnPowerBroadcast(nPowerEvent, lEventData);
+}
+
+//시스템 종료 시작 신호. shutdown sequence 가 OS 의 reposition 을 동반할 수 있어 lock.
+BOOL CMiniClock2Dlg::OnQueryEndSession()
+{
+	m_position_save_locked = true;
+	return CDialogEx::OnQueryEndSession();
+}
+
+void CMiniClock2Dlg::OnEndSession(BOOL bEnding)
+{
+	if (bEnding)
+		m_position_save_locked = true;
+	CDialogEx::OnEndSession(bEnding);
+}
+
+void CMiniClock2Dlg::OnDestroy()
+{
+	if (m_hpwr_monitor)
+	{
+		UnregisterPowerSettingNotification(m_hpwr_monitor);
+		m_hpwr_monitor = NULL;
+	}
+	CDialogEx::OnDestroy();
+}
+
+//CSCShapeDlg 가 OnWindowPosChanged 마다 부모로 보내는 알림. m_temperature 의 위치를 실시간 저장.
+//(이전에는 OnBnClickedCancel 종료 시점에만 저장돼서 사용자가 옮긴 위치가 즉시 굳지 않았고,
+// 종료 sequence 의 phantom reposition 좌표가 그대로 저장되는 위험도 있었다.)
+LRESULT CMiniClock2Dlg::on_message_CSCShapeDlg(WPARAM wParam, LPARAM /*lParam*/)
+{
+	CSCShapeDlgMessage* msg = (CSCShapeDlgMessage*)wParam;
+	if (msg && msg->message == CSCShapeDlg::message_window_pos_changed && msg->pThis == &m_temperature)
+	{
+		if (!should_skip_position_save(&m_temperature))
+			SaveWindowPosition(&theApp, &m_temperature, _T("m_temperature"));
+	}
+	return 0;
 }

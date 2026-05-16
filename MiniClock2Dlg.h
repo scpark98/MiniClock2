@@ -67,11 +67,16 @@ protected:
 	//모니터를 끄면 OS 가 사라진 모니터의 윈도우들을 visible 모니터로 자동 reposition 한다.
 	//그 시점에 OnWindowPosChanged 가 발생해 의도치 않은 좌표가 레지스트리에 저장되면
 	//다음 부팅 시 원치 않는 모니터에서 윈도우가 뜬다.
-	//현재 모니터 개수가 "정상 시점 개수" 보다 적은 동안에는 위치 저장을 lock 한다.
+	//WM_DISPLAYCHANGE 는 OS reposition 보다 늦게 오므로 race 가 있다. 그래서 lock 활성화 시점을
+	//더 이른 신호에 묶는다 — WM_POWERBROADCAST(GUID_MONITOR_POWER_ON: DPMS off) +
+	//WM_QUERYENDSESSION(시스템 종료 시작). 모니터 개수 비교는 fallback.
 	int					m_monitor_count_normal = 0;
 	bool				m_position_save_locked = false;
+	HPOWERNOTIFY		m_hpwr_monitor = NULL;
 public:
 	bool				is_position_save_locked() const { return m_position_save_locked; }
+	//종료/콜백 경로에서도 phantom 좌표 굳지 않게 통합 검증.
+	bool				should_skip_position_save(CWnd* pWnd) const;
 protected:
 
 	protected:
@@ -122,4 +127,10 @@ public:
 	afx_msg LRESULT OnTaskbarCreated(WPARAM wParam, LPARAM lParam);
 
 	afx_msg void OnDisplayChange(UINT uBitsPerPixel, int cxScreen, int cyScreen);
+	afx_msg UINT OnPowerBroadcast(UINT nPowerEvent, LPARAM lEventData);
+	afx_msg BOOL OnQueryEndSession();
+	afx_msg void OnEndSession(BOOL bEnding);
+	afx_msg void OnDestroy();
+	//m_temperature 가 이동될 때 실시간 저장. CSCShapeDlg 가 Message_CSCShapeDlg 로 알림.
+	LRESULT				on_message_CSCShapeDlg(WPARAM wParam, LPARAM lParam);
 };

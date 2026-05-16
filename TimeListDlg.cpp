@@ -955,12 +955,12 @@ void CTimeListDlg::OnMenuDelete()
 LRESULT CTimeListDlg::on_message_CSCShapeDlg(WPARAM wParam, LPARAM lParam)
 {
 	CSCShapeDlgMessage* msg = (CSCShapeDlgMessage*)wParam;
-	if (msg->message == CSCShapeDlg::message_window_pos_changed)
+	if (msg && msg->message == CSCShapeDlg::message_window_pos_changed && msg->pThis == &m_floating)
 	{
-		if (msg->pThis == &m_floating)
-		{
+		//메인의 통합 검증으로 위임 — lock + visible + monitor + work-area intersect.
+		CMiniClock2Dlg* main = (CMiniClock2Dlg*)GetParent();
+		if (main && !main->should_skip_position_save(&m_floating))
 			SaveWindowPosition(&theApp, &m_floating, _T("TimeListDlg\\m_floating"));
-		}
 	}
 	return 0;
 }
