@@ -59,6 +59,8 @@ BEGIN_MESSAGE_MAP(CTimeListDlg, CDialogEx)
 	ON_COMMAND(ID_MENU_LOCK_LISTITEM, &CTimeListDlg::OnMenuLockListitem)
 	ON_REGISTERED_MESSAGE(Message_CSCShapeDlg, &CTimeListDlg::on_message_CSCShapeDlg)
 	ON_NOTIFY(LVN_ENDLABELEDIT, IDC_LIST_TIME, &CTimeListDlg::OnLvnEndLabelEditListTime)
+	ON_WM_ENTERSIZEMOVE()
+	ON_WM_EXITSIZEMOVE()
 END_MESSAGE_MAP()
 
 
@@ -80,6 +82,10 @@ BOOL CTimeListDlg::OnInitDialog()
 	style |= WS_CLIPCHILDREN;
 
 	::SetWindowLongPtr(m_hWnd, GWL_STYLE, style);
+
+	//WS_EX_COMPOSITED — OS-level 더블버퍼링. hide→show 시 OS 가 backbuffer 에 paint 완료 후 한 번에
+	//compose 해서 흰색→dark theme flash 가 사라진다. WS_EX_TOOLWINDOW/TOPMOST 등과 병행 가능.
+	ModifyStyleEx(0, WS_EX_COMPOSITED);
 
 	// 반드시 필요 (프레임 다시 계산)
 	::SetWindowPos(m_hWnd, nullptr, 0, 0, 0, 0,
@@ -148,9 +154,29 @@ BOOL CTimeListDlg::PreTranslateMessage(MSG* pMsg)
 
 BOOL CTimeListDlg::OnEraseBkgnd(CDC* pDC)
 {
-	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-	return FALSE;
-	return CDialogEx::OnEraseBkgnd(pDC);
+	//OnPaint 와 동일 색으로 직접 erase. 기존 `return FALSE` 는 MFC 관례상 "erase 안 했음" 이라
+	//DefWindowProc 가 dialog class brush (시스템 회색) 로 fill 해버려 hide→show 시점에 회색 flash
+	//후 OnPaint 가 dark theme 으로 덮는 깜빡임이 생긴다.
+	CRect rc;
+	GetClientRect(rc);
+	pDC->FillSolidRect(rc, RGB(32, 32, 32));
+	return TRUE;
+}
+
+//프레임 드래그로 사용자가 resize 를 시작할 때 WS_EX_COMPOSITED 를 잠시 끈다.
+//COMPOSITED 가 켜진 상태로 resize 하면 자식 컨트롤들(리스트 텍스트 등) 의 매 paint 마다 전체 윈도우
+//compose 가 트리거돼 staggered flicker 가 보인다. show/hide 시점엔 다시 켜야 flash 가 안 생기므로
+//resize 모달 루프 동안만 임시로 끔.
+void CTimeListDlg::OnEnterSizeMove()
+{
+	ModifyStyleEx(WS_EX_COMPOSITED, 0);
+	CDialogEx::OnEnterSizeMove();
+}
+
+void CTimeListDlg::OnExitSizeMove()
+{
+	ModifyStyleEx(0, WS_EX_COMPOSITED);
+	CDialogEx::OnExitSizeMove();
 }
 
 void CTimeListDlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)

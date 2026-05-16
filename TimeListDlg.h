@@ -128,4 +128,6 @@ public:
 	afx_msg void OnMenuCopyToClipboard();
 	afx_msg void OnMenuLockListitem();
 	afx_msg void OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnEnterSizeMove();
+	afx_msg void OnExitSizeMove();
 };

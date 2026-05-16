@@ -52,6 +52,11 @@ protected:
 
 	bool				m_first_run = true;
 
+	//부팅 시 자기를 topmost 로 올리는 다른 startup 앱들이 우리보다 늦게 올라오면 그 시점에 그 앱이
+	//topmost Z-order 의 위로 가서 우리 앱이 가려진다. 부팅 후 일정 시간 동안 timer_on_top 으로
+	//반복 재assert 해서 늦게 올라오는 topmost 들 위로 다시 가져온다.
+	int					m_topmost_reassert_count = 0;
+
 	int					m_alpha = 255;
 	void				render(Gdiplus::Bitmap* img);;
 	void				rebuild_image();

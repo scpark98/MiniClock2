@@ -507,9 +507,16 @@ void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)
 	}
 	else if (nIDEvent == timer_on_top)
 	{
-		KillTimer(timer_on_top);
 		bool onTop = theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
-		SetWindowPos(onTop ? &wndTopMost : &wndNoTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+		if (onTop)
+		{
+			//SWP_NOACTIVATE — 반복 재assert 가 사용자 포커스를 뺏지 않도록.
+			SetWindowPos(&wndTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+		}
+
+		//부팅 후 ~60초 (5초 × 12회) 동안만 재assert. 그 이후엔 OnActivateApp(FALSE) 에서 trigger.
+		if (++m_topmost_reassert_count >= 12)
+			KillTimer(timer_on_top);
 	}
 	else if (nIDEvent == timer_gpu_temperature)
 	{
@@ -720,6 +727,11 @@ void CMiniClock2Dlg::OnMenuClose()
 
 void CMiniClock2Dlg::OnActivateApp(BOOL bActive, DWORD dwThreadID)
 {
+	//다른 앱이 포커스를 가져갈 때마다 topmost 재assert. timer 가 끝난 뒤에도 늦게 올라오는
+	//topmost 앱들 (대화방, 동영상 플레이어 등) 위로 다시 우리 창을 올린다.
+	if (!bActive && theApp.GetProfileInt(_T("setting"), _T("always on top"), true))
+		SetWindowPos(&wndTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
 	if (!m_timelistDlg.m_hWnd)
 		return;
 
