@@ -161,7 +161,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	//1회성 마이그레이션: 과거에 모니터 off / phantom audio 모니터로 굳어버린 좌표를 일괄 reset.
 	//이번 빌드부터 SaveWindowPosition 이 monitor fingerprint 를 함께 저장하므로 다음 save 시점부터
 	//fingerprint 가 들어가고 이후 Restore 는 fingerprint 매칭으로 phantom 좌표를 거른다.
-	//*반드시* m_timelistDlg.Create() 보다 앞에서 실행 — TimeListDlg::OnInitDialog 가 자기/자식의
+	//*반드시* m_timelistDlg.Create() 보다 앞에서 실행 ? TimeListDlg::OnInitDialog 가 자기/자식의
 	//RestoreWindowPosition 을 즉시 호출하므로 그 전에 phantom section 들이 비워져 있어야 한다.
 	int pos_ver = theApp.GetProfileInt(_T("schema"), _T("position_version"), 0);
 	if (pos_ver < 2)
@@ -187,8 +187,8 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 
 	RestoreWindowPosition(&theApp, this);
 
-	m_temperature.set_text(this, _T("GPU -% -℃"), 13,
-		Gdiplus::FontStyle::FontStyleRegular, 0.0f, 1.6f, _T("DSEG7 Classic"),
+	m_temperature.set_text(this, _T("GPU -% -℃"), 10,
+		Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),
 		Gdiplus::Color(212, 132, 125, 91),
 		Gdiplus::Color(255, 0, 0, 0),
 		Gdiplus::Color(255, 64, 64, 64),
@@ -510,7 +510,7 @@ void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)
 		bool onTop = theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
 		if (onTop)
 		{
-			//SWP_NOACTIVATE — 반복 재assert 가 사용자 포커스를 뺏지 않도록.
+			//SWP_NOACTIVATE ? 반복 재assert 가 사용자 포커스를 뺏지 않도록.
 			SetWindowPos(&wndTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 		}
 
@@ -616,7 +616,7 @@ void CMiniClock2Dlg::OnMenuViewTimeList()
 
 void CMiniClock2Dlg::OnMenuResetTimeListPos()
 {
-	//사용자가 명시적으로 호출 — TimeListDlg 를 primary monitor 의 작업영역 중앙으로 이동시키고
+	//사용자가 명시적으로 호출 ? TimeListDlg 를 primary monitor 의 작업영역 중앙으로 이동시키고
 	//그 좌표를 즉시 레지스트리에 저장. lock 상태와 무관하게 강제 저장.
 	CRect rc_work;
 	SystemParametersInfo(SPI_GETWORKAREA, 0, &rc_work, 0);
@@ -898,7 +898,7 @@ UINT CMiniClock2Dlg::OnPowerBroadcast(UINT nPowerEvent, LPARAM lEventData)
 			DWORD on = *(DWORD*)p->Data;
 			if (on == 0)
 				m_position_save_locked = true;
-			//on 일 때는 lock 해제하지 않는다 — DPMS on 직후 OS 가 곧바로 정상 desktop 으로
+			//on 일 때는 lock 해제하지 않는다 ? DPMS on 직후 OS 가 곧바로 정상 desktop 으로
 			//복귀시키는 위치 이벤트들이 lock 해제와 동시에 새 좌표를 굳힐 수 있다.
 			//WM_DISPLAYCHANGE 가 모니터 개수 회복을 확인하면 거기서 해제.
 		}

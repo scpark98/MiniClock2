@@ -83,7 +83,7 @@ BOOL CTimeListDlg::OnInitDialog()
 
 	::SetWindowLongPtr(m_hWnd, GWL_STYLE, style);
 
-	//WS_EX_COMPOSITED — OS-level 더블버퍼링. hide→show 시 OS 가 backbuffer 에 paint 완료 후 한 번에
+	//WS_EX_COMPOSITED ? OS-level 더블버퍼링. hide→show 시 OS 가 backbuffer 에 paint 완료 후 한 번에
 	//compose 해서 흰색→dark theme flash 가 사라진다. WS_EX_TOOLWINDOW/TOPMOST 등과 병행 가능.
 	ModifyStyleEx(0, WS_EX_COMPOSITED);
 
@@ -110,7 +110,7 @@ BOOL CTimeListDlg::OnInitDialog()
 	m_check_autohide.set_font_weight(FW_BOLD);
 	m_check_autohide.SetCheck(theApp.GetProfileInt(_T("TimeListDlg"), _T("auto hide"), false));
 
-	m_floating.set_text(this, _T(" "), 13, Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
+	m_floating.set_text(this, _T(" "), 10, Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
 		Gdiplus::Color(255, 128, 128, 192),
 		Gdiplus::Color(255, 0, 0, 0),
 		Gdiplus::Color(255, 64, 64, 64),
@@ -983,7 +983,7 @@ LRESULT CTimeListDlg::on_message_CSCShapeDlg(WPARAM wParam, LPARAM lParam)
 	CSCShapeDlgMessage* msg = (CSCShapeDlgMessage*)wParam;
 	if (msg && msg->message == CSCShapeDlg::message_window_pos_changed && msg->pThis == &m_floating)
 	{
-		//메인의 통합 검증으로 위임 — lock + visible + monitor + work-area intersect.
+		//메인의 통합 검증으로 위임 ? lock + visible + monitor + work-area intersect.
 		CMiniClock2Dlg* main = (CMiniClock2Dlg*)GetParent();
 		if (main && !main->should_skip_position_save(&m_floating))
 			SaveWindowPosition(&theApp, &m_floating, _T("TimeListDlg\\m_floating"));
