@@ -385,7 +385,7 @@ void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 		is_process_audio_active(_T("Endorphin.exe")) ||
 		is_process_audio_active(_T("Endorphin2.exe")))
 	{
-		alpha_eff = (int)(m_alpha * 0.2);
+		alpha_eff = (int)(m_alpha * 0.4);
 	}
 	m_temperature.set_alpha(alpha_eff);
 	m_timelistDlg.set_alpha(alpha_eff);
