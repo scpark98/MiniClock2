@@ -117,9 +117,6 @@
     <ClInclude Include="..\Common\CScrollbar\ScrollHelper.h">
       <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="..\Common\CStatic\SCParagraphStatic\SCParagraphStatic.h">
-      <Filter>Common</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MiniClock2.cpp">
@@ -207,9 +204,6 @@
       <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\CScrollbar\ScrollHelper.cpp">
-      <Filter>Common</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\CStatic\SCParagraphStatic\SCParagraphStatic.cpp">
       <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
