@@ -380,6 +380,8 @@ void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 	POINT ptWinPos = { rc.left, rc.top };
 	SIZE sz;
 	//PotPlayer64.exe 가 *재생 중* 일 때만 알파 낮춤. 정지/일시정지/미디어 미로드는 그대로.
+	//단, 여기서 매번 하게 되면 트랙이동중에 잠깐 오디오가 재생중이 아니더라도 바로 반응하므로 산만하다.
+	//timer를 이용해서 처리한다.
 	int alpha_eff = m_alpha;
 	if (is_process_audio_active(_T("PotPlayer64.exe")) ||
 		is_process_audio_active(_T("Endorphin.exe")) ||
