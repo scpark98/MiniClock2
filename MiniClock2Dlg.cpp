@@ -379,16 +379,32 @@ void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 	POINT ptSrc = { 0, 0 };
 	POINT ptWinPos = { rc.left, rc.top };
 	SIZE sz;
-	//PotPlayer64.exe 가 *재생 중* 일 때만 알파 낮춤. 정지/일시정지/미디어 미로드는 그대로.
-	//단, 여기서 매번 하게 되면 트랙이동중에 잠깐 오디오가 재생중이 아니더라도 바로 반응하므로 산만하다.
-	//timer를 이용해서 처리한다. 아직 미구현.
+	//PotPlayer64.exe / Endorphin(2).exe 가 재생 중일 때 알파를 낮춰 시야 가림 최소화.
+	//사운드가 멈춰도 즉시 복원하지 않고 timer_audio_alpha_restore 로 n초 대기 후 복원 —
+	//트랙 이동·짧은 무음 구간에서 알파가 펄럭이는 산만함 방지.
 	int alpha_eff = m_alpha;
-	if (is_process_audio_active(_T("PotPlayer64.exe")) ||
+	bool audio_active = (is_process_audio_active(_T("PotPlayer64.exe")) ||
 		is_process_audio_active(_T("Endorphin.exe")) ||
-		is_process_audio_active(_T("Endorphin2.exe")))
+		is_process_audio_active(_T("Endorphin2.exe")));
+
+	if (audio_active)
 	{
-		alpha_eff = (int)(m_alpha * 0.4);
+		if (m_audio_alpha_restore_pending)
+		{
+			KillTimer(timer_audio_alpha_restore);
+			m_audio_alpha_restore_pending = false;
+		}
+		m_audio_alpha_lowered = true;
 	}
+	else if (m_audio_alpha_lowered && !m_audio_alpha_restore_pending)
+	{
+		SetTimer(timer_audio_alpha_restore, 2000, NULL);
+		m_audio_alpha_restore_pending = true;
+	}
+
+	if (m_audio_alpha_lowered)
+		alpha_eff = (int)(m_alpha * 0.2);
+
 	m_temperature.set_alpha(alpha_eff);
 	m_timelistDlg.set_alpha(alpha_eff);
 
@@ -537,6 +553,13 @@ void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)
 		KillTimer(timer_convert_ime);
 		ime_convert(m_hWnd, true);
 		m_first_run = false;
+	}
+	else if (nIDEvent == timer_audio_alpha_restore)
+	{
+		KillTimer(timer_audio_alpha_restore);
+		m_audio_alpha_restore_pending = false;
+		m_audio_alpha_lowered = false;
+		rebuild_image();
 	}
 
 	CDialogEx::OnTimer(nIDEvent);

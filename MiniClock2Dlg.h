@@ -36,6 +36,7 @@ protected:
 		timer_time,
 		timer_gpu_temperature,
 		timer_on_top,
+		timer_audio_alpha_restore,
 	};
 
 	CSysTrayIcon		m_sys_tray;
@@ -58,6 +59,11 @@ protected:
 	int					m_topmost_reassert_count = 0;
 
 	int					m_alpha = 255;
+	//미디어 플레이어 사운드 출력 중에는 알파를 낮춰 시야를 가리지 않는다.
+	//사운드가 멈춰도 즉시 복원하지 말고 n초 대기 — 트랙 이동·짧은 무음 구간에서
+	//알파가 펄럭이는 산만함 방지.
+	bool				m_audio_alpha_lowered = false;
+	bool				m_audio_alpha_restore_pending = false;
 	void				render(Gdiplus::Bitmap* img);;
 	void				rebuild_image();
 
