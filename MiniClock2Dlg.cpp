@@ -187,7 +187,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 
 	RestoreWindowPosition(&theApp, this);
 
-	m_temperature.set_text(this, _T("GPU -% -℃"), 10,
+	m_temperature.set_text(this, _T("GPU -% -℃"), 12,
 		Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),
 		Gdiplus::Color(212, 132, 125, 91),
 		Gdiplus::Color(255, 0, 0, 0),

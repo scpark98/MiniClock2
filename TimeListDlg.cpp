@@ -110,7 +110,7 @@ BOOL CTimeListDlg::OnInitDialog()
 	m_check_autohide.set_font_weight(FW_BOLD);
 	m_check_autohide.SetCheck(theApp.GetProfileInt(_T("TimeListDlg"), _T("auto hide"), false));
 
-	m_floating.set_text(this, _T(" "), 10, Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
+	m_floating.set_text(this, _T(" "), 12, Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
 		Gdiplus::Color(255, 128, 128, 192),
 		Gdiplus::Color(255, 0, 0, 0),
 		Gdiplus::Color(255, 64, 64, 64),
