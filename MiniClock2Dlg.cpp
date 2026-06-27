@@ -84,6 +84,8 @@ BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	ON_WM_ERASEBKGND()
 	ON_WM_LBUTTONDOWN()
 	ON_WM_LBUTTONUP()
+	ON_WM_MOUSEMOVE()
+	ON_MESSAGE(WM_MOUSELEAVE, &CMiniClock2Dlg::OnMouseLeave)
 	ON_WM_TIMER()
 	ON_COMMAND(ID_MENU_COLOR, &CMiniClock2Dlg::OnMenuColor)
 	ON_WM_MOUSEWHEEL()
@@ -402,7 +404,7 @@ void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 		m_audio_alpha_restore_pending = true;
 	}
 
-	if (m_audio_alpha_lowered)
+	if (m_audio_alpha_lowered && !m_mouse_hover)
 		alpha_eff = (int)(m_alpha * 0.2);
 
 	m_temperature.set_alpha(alpha_eff);
@@ -514,6 +516,30 @@ void CMiniClock2Dlg::OnLButtonUp(UINT nFlags, CPoint point)
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
 
 	CDialogEx::OnLButtonUp(nFlags, point);
+}
+
+void CMiniClock2Dlg::OnMouseMove(UINT nFlags, CPoint point)
+{
+	if (!m_mouse_hover)
+	{
+		m_mouse_hover = true;
+		rebuild_image();
+	}
+
+	TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_LEAVE, m_hWnd, 0 };
+	TrackMouseEvent(&tme);
+
+	CDialogEx::OnMouseMove(nFlags, point);
+}
+
+LRESULT CMiniClock2Dlg::OnMouseLeave(WPARAM, LPARAM)
+{
+	if (m_mouse_hover)
+	{
+		m_mouse_hover = false;
+		rebuild_image();
+	}
+	return 0;
 }
 
 void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)

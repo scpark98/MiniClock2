@@ -64,6 +64,8 @@ protected:
 	//알파가 펄럭이는 산만함 방지.
 	bool				m_audio_alpha_lowered = false;
 	bool				m_audio_alpha_restore_pending = false;
+	//마우스가 윈도우 위에 있는 동안엔 audio_lowered 와 무관하게 원래 알파로 표시.
+	bool				m_mouse_hover = false;
 	void				render(Gdiplus::Bitmap* img);;
 	void				rebuild_image();
 
@@ -113,6 +115,8 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg LRESULT OnMouseLeave(WPARAM wParam, LPARAM lParam);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnMenuColor();
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
