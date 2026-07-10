@@ -342,10 +342,10 @@ void CTimeListDlg::init_list()
 	for (int i = col_start; i <= col_date; i++)
 		m_list.set_column_text_align(i, LVCFMT_CENTER);
 
-	//m_list.set_column_data_type(col_duration, CVtListCtrlEx::column_data_type_numeric);
+	//m_list.set_column_data_type(col_duration, CSCListCtrl::column_data_type_numeric);
 	//남은 시각은 "HH:MM:SS" 또는 "-HH:MM:SS" 형식으로 _ttof 가 선두 시각값을 파싱.
 	//텍스트 정렬이면 "100:00:00" 이 "23:00:00" 보다 앞으로 오는 등 어긋난다.
-	//m_list.set_column_data_type(col_remain, CVtListCtrlEx::column_data_type_numeric);
+	//m_list.set_column_data_type(col_remain, CSCListCtrl::column_data_type_numeric);
 
 	m_list.set_draw_selected_border(false);
 }
@@ -654,7 +654,7 @@ void CTimeListDlg::ensure_floating()
 
 void CTimeListDlg::refresh_remain_and_sort()
 {
-	//col_remain 은 default text 컬럼이라 CVtListCtrlEx::sort 의 _ttof / 사전식 비교로는
+	//col_remain 은 default text 컬럼이라 CSCListCtrl::sort 의 _ttof / 사전식 비교로는
 	//"HH:MM:SS" 형식을 정확히 줄세울 수 없다. 따라서 직접 std::sort + lambda 로 정렬한다.
 	//키는 (start + ts_duration - now) 의 total seconds. 가장 가까운 알람이 위로 (오름차순).
 	int n = m_list.size();

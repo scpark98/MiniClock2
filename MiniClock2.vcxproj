@@ -205,9 +205,9 @@
     <ClInclude Include="..\Common\CDialog\SCShapeDlg\SCShapeDlg.h" />
     <ClInclude Include="..\Common\CEdit\CSCStaticEdit\SCStaticEdit.h" />
     <ClInclude Include="..\Common\CEdit\SCEdit\SCEdit.h" />
-    <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\HeaderCtrlEx.h" />
-    <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\list_data.h" />
-    <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\VtListCtrlEx.h" />
+    <ClInclude Include="..\Common\CListCtrl\CSCListCtrl\list_data.h" />
+    <ClInclude Include="..\Common\CListCtrl\CSCListCtrl\SCHeaderCtrl.h" />
+    <ClInclude Include="..\Common\CListCtrl\CSCListCtrl\SCListCtrl.h" />
     <ClInclude Include="..\Common\colors.h" />
     <ClInclude Include="..\Common\CScrollbar\ScrollHelper.h" />
     <ClInclude Include="..\Common\CScrollbar\SCScrollbar\SCScrollbar.h" />
@@ -217,6 +217,7 @@
     <ClInclude Include="..\Common\device\gpu_usage.h" />
     <ClInclude Include="..\Common\device\nvidia\nvidia_info.h" />
     <ClInclude Include="..\Common\Functions.h" />
+    <ClInclude Include="..\Common\log\SCLog\SCLog.h" />
     <ClInclude Include="..\Common\messagebox\CSCMessageBox\SCMessageBox.h" />
     <ClInclude Include="..\Common\ResizeCtrl.h" />
     <ClInclude Include="..\Common\SCGdiplusBitmap.h" />
@@ -269,19 +270,19 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\Common\CListCtrl\CVtListCtrlEx\HeaderCtrlEx.cpp">
+    <ClCompile Include="..\Common\CListCtrl\CSCListCtrl\list_data.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\Common\CListCtrl\CVtListCtrlEx\list_data.cpp">
+    <ClCompile Include="..\Common\CListCtrl\CSCListCtrl\SCHeaderCtrl.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\Common\CListCtrl\CVtListCtrlEx\VtListCtrlEx.cpp">
+    <ClCompile Include="..\Common\CListCtrl\CSCListCtrl\SCListCtrl.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -341,6 +342,12 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="..\Common\log\SCLog\SCLog.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\Common\messagebox\CSCMessageBox\SCMessageBox.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
@@ -393,7 +400,6 @@
     <Image Include="res\MiniClock2.ico" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\Common\CListCtrl\CVtListCtrlEx\readme.txt" />
     <Text Include="readme.txt" />
   </ItemGroup>
   <ItemGroup>

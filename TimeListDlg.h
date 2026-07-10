@@ -4,7 +4,7 @@
 #include "Common/Functions.h"
 #include "Common/colors.h"
 #include "Common/CButton/GdiButton/GdiButton.h"
-#include "Common/CListCtrl/CVtListCtrlEx/VtListCtrlEx.h"
+#include "Common/CListCtrl/CSCListCtrl/SCListCtrl.h"
 #include "Common/messagebox/CSCMessageBox/SCMessageBox.h"
 #include "Common/CStatic/SCStatic/SCStatic.h"
 #include "Common/ResizeCtrl.h"
@@ -112,7 +112,7 @@ public:
 	afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
 	CSCStatic m_static_alarm_list;
 	CGdiButton m_check_autohide;
-	CVtListCtrlEx m_list;
+	CSCListCtrl m_list;
 	afx_msg void OnPaint();
 	afx_msg void OnNcPaint();
 	afx_msg void OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp);

@@ -16,8 +16,8 @@
     <Filter Include="Common">
       <UniqueIdentifier>{35d4a882-c22e-4e67-9df7-7f0699813122}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Common\CVtListCtrlEx">
-      <UniqueIdentifier>{4ebcaece-c6d2-4eb2-ae52-943c3cadc622}</UniqueIdentifier>
+    <Filter Include="Common\CSCListCtrl">
+      <UniqueIdentifier>{6900ec2a-bf32-4c3d-92de-7b01192cfbea}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -72,15 +72,6 @@
     <ClInclude Include="TimeListDlg.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\HeaderCtrlEx.h">
-      <Filter>Common\CVtListCtrlEx</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\list_data.h">
-      <Filter>Common\CVtListCtrlEx</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Common\CListCtrl\CVtListCtrlEx\VtListCtrlEx.h">
-      <Filter>Common\CVtListCtrlEx</Filter>
-    </ClInclude>
     <ClInclude Include="..\Common\CButton\GdiButton\GdiButton.h">
       <Filter>Common</Filter>
     </ClInclude>
@@ -115,6 +106,18 @@
       <Filter>Common</Filter>
     </ClInclude>
     <ClInclude Include="..\Common\CScrollbar\ScrollHelper.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CListCtrl\CSCListCtrl\SCHeaderCtrl.h">
+      <Filter>Common\CSCListCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CListCtrl\CSCListCtrl\SCListCtrl.h">
+      <Filter>Common\CSCListCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CListCtrl\CSCListCtrl\list_data.h">
+      <Filter>Common\CSCListCtrl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\log\SCLog\SCLog.h">
       <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
@@ -161,15 +164,6 @@
     <ClCompile Include="TimeListDlg.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="..\Common\CListCtrl\CVtListCtrlEx\list_data.cpp">
-      <Filter>Common\CVtListCtrlEx</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\CListCtrl\CVtListCtrlEx\VtListCtrlEx.cpp">
-      <Filter>Common\CVtListCtrlEx</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Common\CListCtrl\CVtListCtrlEx\HeaderCtrlEx.cpp">
-      <Filter>Common\CVtListCtrlEx</Filter>
-    </ClCompile>
     <ClCompile Include="..\Common\CButton\GdiButton\GdiButton.cpp">
       <Filter>Common</Filter>
     </ClCompile>
@@ -206,6 +200,18 @@
     <ClCompile Include="..\Common\CScrollbar\ScrollHelper.cpp">
       <Filter>Common</Filter>
     </ClCompile>
+    <ClCompile Include="..\Common\CListCtrl\CSCListCtrl\SCListCtrl.cpp">
+      <Filter>Common\CSCListCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CListCtrl\CSCListCtrl\list_data.cpp">
+      <Filter>Common\CSCListCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CListCtrl\CSCListCtrl\SCHeaderCtrl.cpp">
+      <Filter>Common\CSCListCtrl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\log\SCLog\SCLog.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MiniClock2.rc">
@@ -223,9 +229,6 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\Common\CListCtrl\CVtListCtrlEx\readme.txt">
-      <Filter>Common\CVtListCtrlEx</Filter>
-    </Text>
     <Text Include="readme.txt" />
   </ItemGroup>
   <ItemGroup>
