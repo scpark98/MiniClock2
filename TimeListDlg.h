@@ -87,8 +87,6 @@ protected:
 	//1:13(=1h 13m), 1d 20m(=1일 20분) 등의 문자열을 총 minutes로 변환한다.
 	int				get_minutes_from_duration_string(CString& duration);
 
-	CSCShapeDlg		m_floating;
-
 
 // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME
@@ -113,6 +111,7 @@ public:
 	CSCStatic m_static_alarm_list;
 	CGdiButton m_check_autohide;
 	CSCListCtrl m_list;
+	CSCShapeDlg m_floating;
 	afx_msg void OnPaint();
 	afx_msg void OnNcPaint();
 	afx_msg void OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp);

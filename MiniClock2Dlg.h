@@ -9,6 +9,8 @@
 #include "Common/system/SysTrayIcon/SysTrayIcon.h"
 #include "Common/device/nvidia/nvidia_info.h"
 #include "Common/device/gpu_usage.h"
+#include "Common/CMenu/CSCMenuBar/SCMenu.h"
+#include "Common/system/SCKeyBindings/SCKeyBindings.h"
 
 #include "TimeListDlg.h"
 
@@ -37,10 +39,22 @@ protected:
 		timer_gpu_temperature,
 		timer_on_top,
 		timer_audio_alpha_restore,
+		//hover 로 timelist 를 띄운 동안만 동작 — WM_MOUSELEAVE 는 창당 1회만 발화하므로
+		//main→timelist→외부 경로에서 main 이 두 번째 leave 를 못 받음. 폴링으로 커서가 두 창 어느 쪽에도
+		//없으면 timelist hide.
+		timer_hover_poll,
 	};
 
 	CSysTrayIcon		m_sys_tray;
 	LRESULT				on_message_CSysTrayIcon(WPARAM, LPARAM);
+
+	//우클릭 컨텍스트 메뉴 (CSCMenu — color theme / full-custom paint). 표준 TrackPopupMenu 대신 사용.
+	CSCMenu				m_menu_context;
+	//메뉴 캡션의 '\t' 뒤 단축키 표기(1/2/3/F1~F3/Ctrl+T/F5 등)를 파싱해 HACCEL 로 등록.
+	//표준 accelerator 경로 → PreTranslateMessage 의 TranslateAccelerator 가 WM_COMMAND 발화.
+	CSCKeyBindings		m_keybindings;
+	HACCEL				m_hAccel = NULL;
+	LRESULT				on_message_CSCMenu(WPARAM, LPARAM);
 
 	CNVidiaInfo			m_nvidia;
 	CGpuUsage			m_gpu_usage;
@@ -66,6 +80,12 @@ protected:
 	bool				m_audio_alpha_restore_pending = false;
 	//마우스가 윈도우 위에 있는 동안엔 audio_lowered 와 무관하게 원래 알파로 표시.
 	bool				m_mouse_hover = false;
+	//autohide 켜진 상태에서 hover 로 timelist 를 띄웠는지. 사용자 클릭·활성화로 뜬 경우와 구분해
+	//leave 시 hover-show 한 것만 다시 감춘다.
+	bool				m_timelist_shown_by_hover = false;
+	//우클릭 컨텍스트 메뉴 표시 중 — 메뉴 위로 마우스가 이동하면 main dlg 가 leave 를 받아
+	//hover 로직이 timelist 를 감추거나 알파를 낮추는 부작용을 유발. TrackPopupMenu 사이에는 hover 처리 skip.
+	bool				m_context_menu_open = false;
 	void				render(Gdiplus::Bitmap* img);;
 	void				rebuild_image();
 
@@ -148,4 +168,16 @@ public:
 	afx_msg void OnDestroy();
 	//m_temperature 가 이동될 때 실시간 저장. CSCShapeDlg 가 Message_CSCShapeDlg 로 알림.
 	LRESULT				on_message_CSCShapeDlg(WPARAM wParam, LPARAM lParam);
+	afx_msg void OnMenuSavePos1();
+	afx_msg void OnMenuSavePos2();
+	afx_msg void OnMenuSavePos3();
+	afx_msg void OnMenuMoveToPos1();
+	afx_msg void OnMenuMoveToPos2();
+	afx_msg void OnMenuMoveToPos3();
+protected:
+	//메인/온도/타임리스트 3창의 현재 위치를 slot(1/2/3)에 스냅샷/복원.
+	//레지스트리 구조: pos<slot>\screen (메인), pos<slot>\m_temperature\screen, pos<slot>\TimeListDlg\screen.
+	//SaveWindowPosition 은 hidden/iconic 창을 skip 하므로, 해당 slot 이 비어있는 창은 move 시 건너뛴다.
+	void				save_positions_to_slot(int slot);
+	void				move_positions_from_slot(int slot);
 };

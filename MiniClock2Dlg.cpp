@@ -110,6 +110,13 @@ BEGIN_MESSAGE_MAP(CMiniClock2Dlg, CDialogEx)
 	ON_WM_ENDSESSION()
 	ON_WM_DESTROY()
 	ON_REGISTERED_MESSAGE(Message_CSCShapeDlg, &CMiniClock2Dlg::on_message_CSCShapeDlg)
+	ON_REGISTERED_MESSAGE(Message_CSCMenu, &CMiniClock2Dlg::on_message_CSCMenu)
+	ON_COMMAND(ID_MENU_SAVE_POS1, &CMiniClock2Dlg::OnMenuSavePos1)
+	ON_COMMAND(ID_MENU_SAVE_POS2, &CMiniClock2Dlg::OnMenuSavePos2)
+	ON_COMMAND(ID_MENU_SAVE_POS3, &CMiniClock2Dlg::OnMenuSavePos3)
+	ON_COMMAND(ID_MENU_MOVE_TO_POS1, &CMiniClock2Dlg::OnMenuMoveToPos1)
+	ON_COMMAND(ID_MENU_MOVE_TO_POS2, &CMiniClock2Dlg::OnMenuMoveToPos2)
+	ON_COMMAND(ID_MENU_MOVE_TO_POS3, &CMiniClock2Dlg::OnMenuMoveToPos3)
 END_MESSAGE_MAP()
 
 
@@ -212,6 +219,15 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	//WM_DISPLAYCHANGE 는 OS 의 윈도우 reposition 보다 늦게 와서 race 가 있다.
 	//모니터 DPMS off 는 PBT_POWERSETTINGCHANGE 로 더 먼저 잡힌다. lock 활성화 신호로 사용.
 	m_hpwr_monitor = RegisterPowerSettingNotification(m_hWnd, &GUID_MONITOR_POWER_ON, DEVICE_NOTIFY_WINDOW_HANDLE);
+
+	//context menu (CSCMenu) 1회 생성. dynamic state (check/caption) 는 popup 직전에 반영.
+	m_menu_context.create(this, 240);
+	m_menu_context.set_color_theme(CSCColorTheme::color_theme_dark_gray);
+	m_menu_context.load(IDR_MENU_CONTEXT, 0);
+
+	//이미 load 된 m_menu_context 의 m_items 를 그대로 seed — 리소스를 CMenu 로 재로드하지 않는다.
+	m_keybindings.seed_from_scmenu(&m_menu_context);
+	m_hAccel = m_keybindings.build_haccel();
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
 }
@@ -472,27 +488,22 @@ void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 
 void CMiniClock2Dlg::OnContextMenu(CWnd* pWnd, CPoint point)
 {
-	CMenu menu;
-	CMenu* pMenu = NULL;
-	CString str;
+	//dynamic state 반영 — check 표시 / 종료 예약 시각 caption.
+	m_menu_context.check_item(ID_MENU_ALWAYS_ON_TOP, is_top_most(m_hWnd));
+	m_menu_context.check_item(ID_MENU_NVIDIA_INFO, theApp.GetProfileInt(_T("setting"), _T("nvidia info"), true) ? true : false);
 
-	menu.LoadMenu(IDR_MENU_CONTEXT);
-	pMenu = (CMenu*)menu.GetSubMenu(0);
-
-	pMenu->CheckMenuItem(ID_MENU_ALWAYS_ON_TOP, is_top_most(m_hWnd) ? MF_CHECKED : MF_UNCHECKED);
-	pMenu->CheckMenuItem(ID_MENU_NVIDIA_INFO, theApp.GetProfileInt(_T("setting"), _T("nvidia info"), true) ? MF_CHECKED : MF_UNCHECKED);
-
-	if (m_system_shutdown.IsEmpty())
+	if (CSCMenuItem* item = m_menu_context.get_menu_item(ID_MENU_SHUTDOWN))
 	{
-		str.Format(_T("시스템 종료 시각 설정(&S)..."));
-	}
-	else
-	{
-		str.Format(_T("%s시 %s분에 자동 종료 예정. 변경..."), m_system_shutdown.Left(2), m_system_shutdown.Right(2));
-		pMenu->ModifyMenu(ID_MENU_SHUTDOWN, MF_BYCOMMAND, ID_MENU_SHUTDOWN, str);
+		if (m_system_shutdown.IsEmpty())
+			item->m_caption = _T("시스템 종료 시각 설정(&S)...");
+		else
+			item->m_caption.Format(_T("%s시 %s분에 자동 종료 예정. 변경..."),
+				m_system_shutdown.Left(2).GetString(), m_system_shutdown.Right(2).GetString());
 	}
 
-	pMenu->TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
+	//CSCMenu 는 modeless — 여기서 flag 만 true 로 두고, 실제 close 는 on_message_CSCMenu 의 hide 분기에서 false.
+	m_context_menu_open = true;
+	m_menu_context.popup_menu(point.x, point.y);
 }
 
 BOOL CMiniClock2Dlg::OnEraseBkgnd(CDC* pDC)
@@ -520,10 +531,30 @@ void CMiniClock2Dlg::OnLButtonUp(UINT nFlags, CPoint point)
 
 void CMiniClock2Dlg::OnMouseMove(UINT nFlags, CPoint point)
 {
+	if (m_context_menu_open)
+	{
+		CDialogEx::OnMouseMove(nFlags, point);
+		return;
+	}
+
 	if (!m_mouse_hover)
 	{
 		m_mouse_hover = true;
 		rebuild_image();
+
+		//앱이 이미 활성 상태면 OnActivateApp 이 timelist show/hide 를 담당 — hover 는 개입하지 않는다.
+		//비활성 상태에서만 hover 로 임시 표시. 포커스는 뺏지 않도록 SW_SHOWNA.
+		if (m_timelistDlg.m_hWnd
+			&& m_timelistDlg.m_check_autohide.GetCheck()
+			&& !m_timelistDlg.IsWindowVisible()
+			&& GetForegroundWindow() != this
+			&& GetForegroundWindow() != &m_timelistDlg)
+		{
+			m_timelistDlg.ShowWindow(SW_SHOWNA);
+			m_timelist_shown_by_hover = true;
+			//polling 시작 — main→timelist→외부 경로 커버.
+			SetTimer(timer_hover_poll, 200, NULL);
+		}
 	}
 
 	TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_LEAVE, m_hWnd, 0 };
@@ -534,10 +565,31 @@ void CMiniClock2Dlg::OnMouseMove(UINT nFlags, CPoint point)
 
 LRESULT CMiniClock2Dlg::OnMouseLeave(WPARAM, LPARAM)
 {
+	if (m_context_menu_open)
+		return 0;
+
 	if (m_mouse_hover)
 	{
 		m_mouse_hover = false;
 		rebuild_image();
+	}
+
+	//hover 로 띄운 timelist — 커서가 timelist 로 이동한 게 아니라 완전히 외부로 나갔다면 즉시 hide.
+	//timelist 안으로 이동한 경우엔 flag/타이머를 유지 → timer_hover_poll 이 이후 timelist 벗어남을 감지해 hide.
+	if (m_timelist_shown_by_hover && m_timelistDlg.m_hWnd)
+	{
+		CPoint pt;
+		GetCursorPos(&pt);
+
+		CRect rc_tl;
+		m_timelistDlg.GetWindowRect(&rc_tl);
+
+		if (!rc_tl.PtInRect(pt))
+		{
+			m_timelistDlg.ShowWindow(SW_HIDE);
+			m_timelist_shown_by_hover = false;
+			KillTimer(timer_hover_poll);
+		}
 	}
 	return 0;
 }
@@ -549,10 +601,50 @@ void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)
 	{
 		rebuild_image();
 	}
+	else if (nIDEvent == timer_hover_poll)
+	{
+		//커서가 main dlg 와 timelist 어느 쪽에도 없으면 hide. 메뉴 표시 중이면 skip
+		//(§m_context_menu_open — 메뉴 팝업 위 커서로 잘못 hide 되는 것 방지).
+		if (m_context_menu_open)
+			return;
+
+		if (!m_timelist_shown_by_hover || !m_timelistDlg.m_hWnd)
+		{
+			KillTimer(timer_hover_poll);
+			m_timelist_shown_by_hover = false;
+			return;
+		}
+
+		if (!m_timelistDlg.IsWindowVisible())
+		{
+			//다른 경로(활성화/메뉴 토글 등)로 이미 hide 됨 — 타이머만 정리.
+			m_timelist_shown_by_hover = false;
+			KillTimer(timer_hover_poll);
+			return;
+		}
+
+		CPoint pt;
+		GetCursorPos(&pt);
+
+		CRect rc_main;
+		GetWindowRect(&rc_main);
+
+		CRect rc_tl;
+		m_timelistDlg.GetWindowRect(&rc_tl);
+
+		if (!rc_main.PtInRect(pt) && !rc_tl.PtInRect(pt))
+		{
+			m_timelistDlg.ShowWindow(SW_HIDE);
+			m_timelist_shown_by_hover = false;
+			KillTimer(timer_hover_poll);
+		}
+	}
 	else if (nIDEvent == timer_on_top)
 	{
 		bool onTop = theApp.GetProfileInt(_T("setting"), _T("always on top"), true);
-		if (onTop)
+		//컨텍스트 메뉴 표시 중이면 z-order 재assert 를 skip — main dlg 와 owned popup (timelist) 가
+		//non-topmost 팝업 메뉴 위로 올라와 메뉴를 가리는 문제 방지.
+		if (onTop && !m_context_menu_open)
 		{
 			//SWP_NOACTIVATE ? 반복 재assert 가 사용자 포커스를 뺏지 않도록.
 			SetWindowPos(&wndTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
@@ -799,10 +891,15 @@ void CMiniClock2Dlg::OnActivateApp(BOOL bActive, DWORD dwThreadID)
 	if (bActive)
 	{
 		m_timelistDlg.ShowWindow(SW_SHOW);
+		//사용자가 클릭·활성화로 진입 — 이후 leave 에서 hover-hide 가 발동하지 않도록 플래그·타이머 정리.
+		m_timelist_shown_by_hover = false;
+		KillTimer(timer_hover_poll);
 	}
 	else if (m_timelistDlg.m_check_autohide.GetCheck())
 	{
 		m_timelistDlg.ShowWindow(bActive ? SW_SHOW : SW_HIDE);
+		m_timelist_shown_by_hover = false;
+		KillTimer(timer_hover_poll);
 	}
 }
 
@@ -830,6 +927,10 @@ void CMiniClock2Dlg::OnKillFocus(CWnd* pNewWnd)
 
 BOOL CMiniClock2Dlg::PreTranslateMessage(MSG* pMsg)
 {
+	//메뉴 캡션의 '\tKey' 로 등록된 단축키를 accelerator table 로 발화 → 동일 WM_COMMAND 경로.
+	if (m_hAccel && ::TranslateAccelerator(m_hWnd, m_hAccel, pMsg))
+		return TRUE;
+
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
 
@@ -983,12 +1084,53 @@ void CMiniClock2Dlg::OnDestroy()
 		UnregisterPowerSettingNotification(m_hpwr_monitor);
 		m_hpwr_monitor = NULL;
 	}
+	if (m_hAccel)
+	{
+		::DestroyAcceleratorTable(m_hAccel);
+		m_hAccel = NULL;
+	}
 	CDialogEx::OnDestroy();
 }
 
 //CSCShapeDlg 가 OnWindowPosChanged 마다 부모로 보내는 알림. m_temperature 의 위치를 실시간 저장.
 //(이전에는 OnBnClickedCancel 종료 시점에만 저장돼서 사용자가 옮긴 위치가 즉시 굳지 않았고,
 // 종료 sequence 의 phantom reposition 좌표가 그대로 저장되는 위험도 있었다.)
+LRESULT CMiniClock2Dlg::on_message_CSCMenu(WPARAM wParam, LPARAM /*lParam*/)
+{
+	CSCMenuMessage* msg = (CSCMenuMessage*)wParam;
+	if (!msg)
+		return 0;
+
+	if (msg->m_message == CSCMenu::message_scmenu_hide)
+	{
+		//메뉴 닫힘 — hover 로직 재개.
+		m_context_menu_open = false;
+
+		//메뉴 표시 중 swallow 한 leave 를 뒤늦게 반영 — 커서가 이 창 밖이면 hover 해제, 안이면 TrackMouseEvent 재무장.
+		CPoint pt;
+		GetCursorPos(&pt);
+
+		CRect rc;
+		GetWindowRect(&rc);
+
+		if (!rc.PtInRect(pt))
+			OnMouseLeave(0, 0);
+		else
+		{
+			TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_LEAVE, m_hWnd, 0 };
+			TrackMouseEvent(&tme);
+		}
+		return 0;
+	}
+
+	if (msg->m_message != CSCMenu::message_scmenu_selchanged || !msg->m_menu_item)
+		return 0;
+
+	//메뉴 항목 선택 → 기존 ON_COMMAND 핸들러로 dispatch (accelerator 경로와 동일).
+	SendMessage(WM_COMMAND, MAKEWPARAM(msg->m_menu_item->m_id, 0), 0);
+	return 0;
+}
+
 LRESULT CMiniClock2Dlg::on_message_CSCShapeDlg(WPARAM wParam, LPARAM /*lParam*/)
 {
 	CSCShapeDlgMessage* msg = (CSCShapeDlgMessage*)wParam;
@@ -998,4 +1140,70 @@ LRESULT CMiniClock2Dlg::on_message_CSCShapeDlg(WPARAM wParam, LPARAM /*lParam*/)
 			SaveWindowPosition(&theApp, &m_temperature, _T("m_temperature"));
 	}
 	return 0;
+}
+
+void CMiniClock2Dlg::save_positions_to_slot(int slot)
+{
+	CString prefix;
+	prefix.Format(_T("pos%d"), slot);
+
+	SaveWindowPosition(&theApp, this,                       prefix);
+	SaveWindowPosition(&theApp, &m_temperature,             prefix + _T("\\m_temperature"));
+	SaveWindowPosition(&theApp, &m_timelistDlg,             prefix + _T("\\TimeListDlg"));
+	SaveWindowPosition(&theApp, &m_timelistDlg.m_floating,  prefix + _T("\\TimeListDlg\\m_floating"));
+}
+
+void CMiniClock2Dlg::move_positions_from_slot(int slot)
+{
+	CString prefix;
+	prefix.Format(_T("pos%d"), slot);
+
+	struct { CWnd* wnd; CString section; } items[] =
+	{
+		{ this,                       prefix                                    },
+		{ &m_temperature,             prefix + _T("\\m_temperature")            },
+		{ &m_timelistDlg,             prefix + _T("\\TimeListDlg")              },
+		{ &m_timelistDlg.m_floating,  prefix + _T("\\TimeListDlg\\m_floating")  },
+	};
+
+	for (auto& it : items)
+	{
+		//slot 이 비어 있으면 (한 번도 저장 안 됨) 건너뜀 — RestoreWindowPosition 이 기본으로
+		//호출하는 CenterWindow() 로 창이 중앙으로 튀는 것을 방지.
+		CRect saved = get_profile_value<CRect>(it.section + _T("\\screen"), _T("position"), CRect());
+		if (saved.IsRectNull())
+			continue;
+
+		RestoreWindowPosition(&theApp, it.wnd, it.section, false, true, false);
+	}
+}
+
+void CMiniClock2Dlg::OnMenuMoveToPos1()
+{
+	move_positions_from_slot(1);
+}
+
+void CMiniClock2Dlg::OnMenuMoveToPos2()
+{
+	move_positions_from_slot(2);
+}
+
+void CMiniClock2Dlg::OnMenuMoveToPos3()
+{
+	move_positions_from_slot(3);
+}
+
+void CMiniClock2Dlg::OnMenuSavePos1()
+{
+	save_positions_to_slot(1);
+}
+
+void CMiniClock2Dlg::OnMenuSavePos2()
+{
+	save_positions_to_slot(2);
+}
+
+void CMiniClock2Dlg::OnMenuSavePos3()
+{
+	save_positions_to_slot(3);
 }

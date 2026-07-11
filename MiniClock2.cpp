@@ -15,7 +15,7 @@
 // CMiniClock2App
 
 BEGIN_MESSAGE_MAP(CMiniClock2App, CWinApp)
-	ON_COMMAND(ID_HELP, &CWinApp::OnHelp)
+	//ON_COMMAND(ID_HELP, &CWinApp::OnHelp)
 END_MESSAGE_MAP()
 
 

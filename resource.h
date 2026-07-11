@@ -64,13 +64,19 @@
 #define ID_MENU_DELETE                  32792
 #define ID_CONTEXTMENU_NVIDIAINFO       32793
 #define ID_MENU_NVIDIA_INFO             32794
+#define ID_MENU_SAVE_POS1               32795
+#define ID_MENU_SAVE_POS2               32796
+#define ID_MENU_SAVE_POS3               32797
+#define ID_MENU_MOVE_TO_POS1            32798
+#define ID_MENU_MOVE_TO_POS2            32799
+#define ID_MENU_MOVE_TO_POS3            32800
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        141
-#define _APS_NEXT_COMMAND_VALUE         32795
+#define _APS_NEXT_COMMAND_VALUE         32801
 #define _APS_NEXT_CONTROL_VALUE         1000
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

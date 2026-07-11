@@ -348,6 +348,7 @@ void CTimeListDlg::init_list()
 	//m_list.set_column_data_type(col_remain, CSCListCtrl::column_data_type_numeric);
 
 	m_list.set_draw_selected_border(false);
+	m_list.set_use_own_context_menu(false);
 }
 void CTimeListDlg::OnPaint()
 {

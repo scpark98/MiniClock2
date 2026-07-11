@@ -19,6 +19,9 @@
     <Filter Include="Common\CSCListCtrl">
       <UniqueIdentifier>{6900ec2a-bf32-4c3d-92de-7b01192cfbea}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Common\CSCMenu">
+      <UniqueIdentifier>{1c7f78ad-7c8f-4cf1-8b81-f5680a91606a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MiniClock2.h">
@@ -120,6 +123,18 @@
     <ClInclude Include="..\Common\log\SCLog\SCLog.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\CMenu\CSCMenuBar\SCMenuBar.h">
+      <Filter>Common\CSCMenu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CMenu\CSCMenuBar\SCMenuButton.h">
+      <Filter>Common\CSCMenu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CMenu\CSCMenuBar\SCMenu.h">
+      <Filter>Common\CSCMenu</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\system\SCKeyBindings\SCKeyBindings.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MiniClock2.cpp">
@@ -210,6 +225,18 @@
       <Filter>Common\CSCListCtrl</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\log\SCLog\SCLog.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CMenu\CSCMenuBar\SCMenuBar.cpp">
+      <Filter>Common\CSCMenu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CMenu\CSCMenuBar\SCMenuButton.cpp">
+      <Filter>Common\CSCMenu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CMenu\CSCMenuBar\SCMenu.cpp">
+      <Filter>Common\CSCMenu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\system\SCKeyBindings\SCKeyBindings.cpp">
       <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
