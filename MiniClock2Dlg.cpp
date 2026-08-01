@@ -13,6 +13,7 @@
 #include <mmsystem.h>
 #include "AddAlarmDlg.h"
 #include "ShutdownTimeDlg.h"
+#include "Common/log/SCLog/SCLog.h"		//20260801 by claude. [진단] monitor off/on 시각을 alarm 시각과 대조.
 
 
 #ifdef _DEBUG
@@ -1048,6 +1049,10 @@ UINT CMiniClock2Dlg::OnPowerBroadcast(UINT nPowerEvent, LPARAM lEventData)
 		if (p->PowerSetting == GUID_MONITOR_POWER_ON && p->DataLength >= sizeof(DWORD))
 		{
 			DWORD on = *(DWORD*)p->Data;
+
+			//20260801 by claude. [진단] monitor DPMS 상태 변경 시각 — alarm 시각과 대조용.
+			logWrite(_T("[power] MONITOR_POWER_ON=%u"), on);
+
 			if (on == 0)
 				m_position_save_locked = true;
 			//on 일 때는 lock 해제하지 않는다 ? DPMS on 직후 OS 가 곧바로 정상 desktop 으로
@@ -1057,7 +1062,14 @@ UINT CMiniClock2Dlg::OnPowerBroadcast(UINT nPowerEvent, LPARAM lEventData)
 	}
 	else if (nPowerEvent == PBT_APMSUSPEND)
 	{
+		//20260801 by claude. [진단] 시스템 suspend (모니터 off 와 별개).
+		logWrite(_T("[power] APM_SUSPEND"));
 		m_position_save_locked = true;
+	}
+	else if (nPowerEvent == PBT_APMRESUMEAUTOMATIC || nPowerEvent == PBT_APMRESUMESUSPEND)
+	{
+		//20260801 by claude. [진단] 시스템 resume — 이 시점 직후 alarm 이 몰려 울리는지 확인.
+		logWrite(_T("[power] APM_RESUME event=0x%X"), nPowerEvent);
 	}
 
 	return CDialogEx::OnPowerBroadcast(nPowerEvent, lEventData);
@@ -1067,11 +1079,13 @@ UINT CMiniClock2Dlg::OnPowerBroadcast(UINT nPowerEvent, LPARAM lEventData)
 BOOL CMiniClock2Dlg::OnQueryEndSession()
 {
 	m_position_save_locked = true;
+	logWrite(_T("[power] QueryEndSession"));		//20260801 by claude. [진단] 종료 시퀀스 진입 시각.
 	return CDialogEx::OnQueryEndSession();
 }
 
 void CMiniClock2Dlg::OnEndSession(BOOL bEnding)
 {
+	logWrite(_T("[power] EndSession bEnding=%d"), bEnding);		//20260801 by claude. [진단] 종료 확정/취소 시각.
 	if (bEnding)
 		m_position_save_locked = true;
 	CDialogEx::OnEndSession(bEnding);

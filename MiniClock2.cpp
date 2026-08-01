@@ -6,10 +6,14 @@
 #include "framework.h"
 #include "MiniClock2.h"
 #include "MiniClock2Dlg.h"
+#include "Common/log/SCLog/SCLog.h"		//20260801 by claude. [진단] TimeListDlg 알람 오발동 추적용.
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+
+//20260801 by claude. [진단] alarm beep 원인 추적. push 전까지 유지 (§2J.1).
+CSCLog gLog;
 
 
 // CMiniClock2App
@@ -98,6 +102,8 @@ BOOL CMiniClock2App::InitInstance()
 	// TODO: 이 문자열을 회사 또는 조직의 이름과 같은
 	// 적절한 내용으로 수정해야 합니다.
 	SetRegistryKey(_T("Legends Software"));
+
+	gLog.write_start_log();		//20260801 by claude. [진단] SetRegistryKey 후 로그 시작 (헤더 정보 기록).
 
 	CMiniClock2Dlg dlg;
 	m_pMainWnd = &dlg;

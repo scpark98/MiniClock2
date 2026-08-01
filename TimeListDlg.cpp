@@ -9,6 +9,7 @@
 
 #include "Common/MemoryDC.h"
 //#include "Common/messagebox/XMessageBox/XMessageBox.h"
+#include "Common/log/SCLog/SCLog.h"		//20260801 by claude. [진단] alarm beep 원인 추적.
 
 // CTimeListDlg 대화 상자
 
@@ -580,6 +581,9 @@ void CTimeListDlg::load_timelist()
 {
 	int count = theApp.GetProfileInt(_T("TimeListDlg"), _T("count"), 0);
 
+	//20260801 by claude. [진단] 시작 시 registry 에서 불러온 원본 count.
+	logWrite(_T("[timelist] load_timelist begin: registry count=%d"), count);
+
 	for (int i = 0; i < count; i++)
 	{
 		CString key;
@@ -600,11 +604,33 @@ void CTimeListDlg::load_timelist()
 												_T(""),
 												get_date_str(item->start));
 				m_list.SetItemData(index, reinterpret_cast<DWORD_PTR>(item));
+
+				//20260801 by claude. [진단] 각 아이템의 title / start / end / locked / floating.
+				CTime end = item->start + item->ts_duration;
+				logWrite(_T("[timelist] load item[%02d]: title=%s start=%s end=%s locked=%d floating=%d insert_index=%d"),
+					i, item->title,
+					get_time_str(item->start).GetString(),
+					get_time_str(end).GetString(),
+					(int)item->is_locked, (int)item->is_floating, index);
+			}
+			else
+			{
+				//20260801 by claude. [진단] sizeof 불일치 (구버전 CAlarmItem 잔재 가능).
+				logWrite(_T("[timelist] load item[%02d]: size mismatch (got=%u expected=%u) — skipped"),
+					i, sz, (UINT)sizeof(CAlarmItem));
 			}
 			//이 프로젝트에서는 GetProfileBinary()로 얻어온 값을 계속 사용해야 하므로 지워서는 안된다.
 			//delete[] reinterpret_cast<BYTE*>(item);
 		}
+		else
+		{
+			//20260801 by claude. [진단] count 는 있는데 해당 key 가 없거나 read 실패.
+			logWrite(_T("[timelist] load item[%02d]: GetProfileBinary failed"), i);
+		}
 	}
+
+	//20260801 by claude. [진단] 최종 m_list.size() vs registry count 일치 여부.
+	logWrite(_T("[timelist] load_timelist end: m_list.size()=%d"), (int)m_list.size());
 
 	ensure_floating();
 }
@@ -720,6 +746,9 @@ void CTimeListDlg::save_timelist()
 {
 	AfxGetApp()->WriteProfileInt(_T("TimeListDlg"), _T("count"), m_list.size());
 
+	//20260801 by claude. [진단] save 시점의 count.
+	logWrite(_T("[timelist] save_timelist: count=%d"), (int)m_list.size());
+
 	for (int i = 0; i < m_list.size(); i++)
 	{
 		CString key;
@@ -728,6 +757,18 @@ void CTimeListDlg::save_timelist()
 		if (item)
 		{
 			AfxGetApp()->WriteProfileBinary(_T("TimeListDlg"), key, (LPBYTE)item, sizeof(CAlarmItem));
+
+			//20260801 by claude. [진단] 저장된 각 아이템의 title / end / locked.
+			CTime end = item->start + item->ts_duration;
+			logWrite(_T("[timelist] save item[%02d]: title=%s end=%s locked=%d floating=%d"),
+				i, item->title,
+				get_time_str(end).GetString(),
+				(int)item->is_locked, (int)item->is_floating);
+		}
+		else
+		{
+			//20260801 by claude. [진단] m_list 에 있지만 item 데이터가 NULL — 이런 상태로 write 되지 않음.
+			logWrite(_T("[timelist] save item[%02d]: NULL data (not written)"), i);
 		}
 	}
 }
@@ -793,6 +834,12 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 		//해당 시각이면 알림을 띠워주고
 		if (remain_seconds == 0)
 		{
+			//20260801 by claude. [진단] beep 발동 확정 — 이 라인이 로그에 없으면 소리는 이 앱이 아님.
+			logWrite(_T("[timelist] BEEP fire: idx=%d title=%s end=%s locked=%d floating=%d"),
+				i, item->title,
+				get_time_str(end).GetString(),
+				(int)item->is_locked, (int)item->is_floating);
+
 			::MessageBeep(MB_ICONEXCLAMATION);
 			m_msgbox.DoModal(item->title, MB_OK, 10);
 		}
@@ -808,6 +855,10 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 			//10분이 지났다면 목록에서 완전 삭제한다.
 			if (remain_seconds < -600)
 			{
+				//20260801 by claude. [진단] 10 분 경과 auto-delete.
+				logWrite(_T("[timelist] auto-delete (>10min past): idx=%d title=%s end=%s"),
+					i, item->title, get_time_str(end).GetString());
+
 				if (item->is_floating)
 					has_floating = false;
 
@@ -959,20 +1010,44 @@ void CTimeListDlg::OnMenuDelete()
 	std::deque<int> selected;
 	m_list.get_selected_items(&selected);
 
+	//20260801 by claude. [진단] delete 요청 시점 상태.
+	int size_before = (int)m_list.size();
+	int locked_skipped = 0;
+	int actually_deleted = 0;
+	logWrite(_T("[timelist] OnMenuDelete begin: selected=%d list.size=%d"),
+		(int)selected.size(), size_before);
+
 	//중간 항목이 삭제되어도 인덱스가 유지되도록 뒤에서부터 삭제한다.
 	for (int i = selected.size() - 1; i >= 0; i--)
 	{
 		CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected[i]);
 
 		if (item->is_locked)
+		{
+			//20260801 by claude. [진단] 잠금 항목 스킵 — 사용자 인지 여부 확인용.
+			logWrite(_T("[timelist] OnMenuDelete skip locked: idx=%d title=%s"),
+				selected[i], item->title);
+			locked_skipped++;
 			continue;
+		}
 
 		if (item->is_floating)
 			m_floating.ShowWindow(SW_HIDE);
 
+		//20260801 by claude. [진단] 삭제 대상 identify.
+		CTime end = item->start + item->ts_duration;
+		logWrite(_T("[timelist] OnMenuDelete delete: idx=%d title=%s end=%s"),
+			selected[i], item->title, get_time_str(end).GetString());
+
 		delete item;
 		m_list.delete_item(selected[i]);
+		actually_deleted++;
 	}
+
+	//20260801 by claude. [진단] delete_item 회귀 검증 — size 가 요청만큼 감소했는지.
+	int size_after = (int)m_list.size();
+	logWrite(_T("[timelist] OnMenuDelete end: locked_skipped=%d deleted=%d size_before=%d size_after=%d (expected_after=%d)"),
+		locked_skipped, actually_deleted, size_before, size_after, size_before - actually_deleted);
 
 	save_timelist();
 	//남은 항목 중 가장 임박한(양의) 항목을 floating 으로 승격.
