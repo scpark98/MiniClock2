@@ -438,6 +438,15 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 		int minute = 0;
 
 		get_token_str(duration, token, _T(":"), false);
+
+		//20260802 by claude. get_token_str 은 allowEmpty=false 라 빈 토큰을 버린다. ":" 만 입력하면
+		//토큰이 0개가 되어 token[0] 이 범위 밖 접근이 된다(Debug 어서션 / Release 접근 위반).
+		if (token.empty())
+		{
+			m_msgbox.DoModal(_T("간격을 인식할 수 없습니다.\n\n분 단위(30), hh:mm(9:30), 1d 2h 3m 형식으로 입력하세요."));
+			return;
+		}
+
 		hour = _ttoi(token[0]);
 		if (token.size() > 1)
 			minute = _ttoi(token[1]);
@@ -466,6 +475,14 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 	else
 	{
 		int minutes = get_minutes_from_duration_string(duration);
+
+		//20260802 by claude. 파싱 실패(-1) 를 검사하지 않아 1분 전에 만료된 알람이 조용히 등록됐다.
+		if (minutes < 0)
+		{
+			m_msgbox.DoModal(_T("간격을 인식할 수 없습니다.\n\n분 단위(30), hh:mm(9:30), 1d 2h 3m 형식으로 입력하세요."));
+			return;
+		}
+
 		ts_duration = CTimeSpan(0, 0, minutes, 0);
 		sEnd = get_time_str(tStart + ts_duration);
 	}
@@ -512,7 +529,7 @@ void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool 
 		}
 	}
 
-	CAlarmItem* data = new CAlarmItem(title.GetBuffer(), tStart, ts_duration, add_favorite, floating);
+	CAlarmItem* data = new CAlarmItem(title, tStart, ts_duration, add_favorite, floating);
 	m_list.SetItemData(index, reinterpret_cast<DWORD_PTR>(data));
 
 	if (save_list)
@@ -559,7 +576,13 @@ int	CTimeListDlg::get_minutes_from_duration_string(CString& duration)
 	{
 		std::deque<CString> token;
 		get_token_str(duration, token, _T(":"), false, 2);
-		minutes = _ttoi(token[0]) * 60 + _ttoi(token[1]);
+
+		//20260802 by claude. 위에서 ',' / ';' 를 ':' 로 치환하므로 "," "5," 같은 입력이 여기로 온다.
+		//빈 토큰은 버려지므로 토큰이 0~1개일 수 있고, 무검사로 token[1] 을 읽으면 범위 밖 접근.
+		if (token.empty())
+			return -1;
+
+		minutes = _ttoi(token[0]) * 60 + (token.size() > 1 ? _ttoi(token[1]) : 0);
 	}
 	//분 단위로만 입력한 경우
 	else
@@ -576,9 +599,120 @@ int	CTimeListDlg::get_minutes_from_duration_string(CString& duration)
 	return minutes;
 }
 
-//get total minutes from day hour minutes. ex) 1d 2h 3m
+//20260802 by claude. 구버전은 CAlarmItem 구조체를 통째로 REG_BINARY 로 저장했다. 그 방식은
+//(a) 멤버가 하나만 추가돼도 sizeof 가 바뀌어 기존 항목이 전부 버려지고
+//(b) CString 같은 non-POD 멤버를 넣는 순간 blob 을 캐스팅해 읽는 코드가 쓰레기 포인터를 역참조하며
+//(c) GetProfileBinary 가 new BYTE[] 로 준 버퍼를 delete 로 해제하는 불일치를 남겼다.
+//문자열 직렬화로 바꿔 셋 다 제거한다.
+CString CAlarmItem::to_string() const
+{
+	CString str;
+	str.Format(_T("%I64d|%I64d|%d|%d|%d|%d|%s"),
+		(__int64)start.GetTime(),
+		(__int64)ts_duration.GetTotalSeconds(),
+		(int)is_locked,
+		(int)is_floating,
+		(int)is_paused,
+		(int)fired,
+		title.GetString());
+
+	return str;
+}
+
+bool CAlarmItem::from_string(const CString& str)
+{
+	//title 은 마지막 필드이므로 앞쪽 구분자 6개만 찾고 나머지는 통째로 title 로 둔다.
+	//이렇게 해야 title 에 '|' 가 들어가도 파싱이 깨지지 않는다.
+	int pos[6] = { 0, };
+	int from = 0;
+
+	for (int i = 0; i < _countof(pos); i++)
+	{
+		pos[i] = str.Find(_T('|'), from);
+		if (pos[i] < 0)
+			return false;
+
+		from = pos[i] + 1;
+	}
+
+	start = CTime((__time64_t)_ttoi64(str.Left(pos[0])));
+	ts_duration = CTimeSpan((__time64_t)_ttoi64(str.Mid(pos[0] + 1, pos[1] - pos[0] - 1)));
+	is_locked = (_ttoi(str.Mid(pos[1] + 1, pos[2] - pos[1] - 1)) != 0);
+	is_floating = (_ttoi(str.Mid(pos[2] + 1, pos[3] - pos[2] - 1)) != 0);
+	is_paused = (_ttoi(str.Mid(pos[3] + 1, pos[4] - pos[3] - 1)) != 0);
+	fired = (_ttoi(str.Mid(pos[4] + 1, pos[5] - pos[4] - 1)) != 0);
+	title = str.Mid(pos[5] + 1);
+
+	return true;
+}
+
+void CTimeListDlg::migrate_timelist_from_binary()
+{
+	//구버전 레이아웃 재현. 현재 CAlarmItem 은 CString 을 가지므로 blob 을 그대로 캐스팅할 수 없다.
+	//당시의 멤버 순서·타입을 그대로 두어야 sizeof 와 오프셋이 맞는다.
+	struct alarm_item_binary
+	{
+		TCHAR		title[16];
+		CTime		start;
+		CTimeSpan	ts_duration;
+		bool		is_locked;
+		bool		is_floating;
+		bool		is_paused;
+	};
+
+	int count = theApp.GetProfileInt(_T("TimeListDlg"), _T("count"), 0);
+	int migrated = 0;
+
+	//count 범위 밖에도 과거에 항목 수가 줄면서 남은 잔재 키가 있다(실제로 count=7 인데 item10 까지 존재).
+	//구버전 save 가 지우지 않았던 것들이라 여기서 같이 정리한다. 키 형식이 item%02d 라 상한은 100.
+	for (int i = 0; i < 100; i++)
+	{
+		CString key;
+		key.Format(_T("item%02d"), i);
+
+		LPBYTE blob = nullptr;
+		UINT sz = 0;
+		if (!theApp.GetProfileBinary(_T("TimeListDlg"), key, &blob, &sz))
+			continue;
+
+		if (i >= count)
+		{
+			//리스트에 올라오지 않는 잔재. 변환하지 않고 삭제만 한다.
+			logWrite(_T("[timelist] migrate item[%02d]: count(%d) 밖의 잔재 — 삭제"), i, count);
+		}
+		else if (sz == sizeof(alarm_item_binary))
+		{
+			alarm_item_binary* old = (alarm_item_binary*)blob;
+			//blob 이 종단되지 않은 상태일 수 있다. CString 으로 옮기기 전에 강제 종단.
+			old->title[_countof(old->title) - 1] = 0;
+
+			CAlarmItem item(old->title, old->start, old->ts_duration, old->is_locked, old->is_floating);
+			item.is_paused = old->is_paused;
+
+			CString new_key;
+			new_key.Format(_T("alarm%02d"), i);
+			theApp.WriteProfileString(_T("TimeListDlg"), new_key, item.to_string());
+			migrated++;
+		}
+		else
+		{
+			logWrite(_T("[timelist] migrate item[%02d]: size mismatch (got=%u expected=%u) — 버림"),
+				i, sz, (UINT)sizeof(alarm_item_binary));
+		}
+
+		delete[] blob;
+		theApp.WriteProfileString(_T("TimeListDlg"), key, NULL);
+	}
+
+	theApp.WriteProfileInt(_T("schema"), _T("timelist_version"), 1);
+	logWrite(_T("[timelist] migrate: count=%d migrated=%d"), count, migrated);
+}
+
 void CTimeListDlg::load_timelist()
 {
+	if (theApp.GetProfileInt(_T("schema"), _T("timelist_version"), 0) < 1)
+		migrate_timelist_from_binary();
+
 	int count = theApp.GetProfileInt(_T("TimeListDlg"), _T("count"), 0);
 
 	//20260801 by claude. [진단] 시작 시 registry 에서 불러온 원본 count.
@@ -587,46 +721,40 @@ void CTimeListDlg::load_timelist()
 	for (int i = 0; i < count; i++)
 	{
 		CString key;
-		key.Format(_T("item%02d"), i);
-		CAlarmItem* item = nullptr;
-		UINT sz = sizeof(CAlarmItem);
-		if (theApp.GetProfileBinary(_T("TimeListDlg"), key, reinterpret_cast<LPBYTE*>(&item), &sz))
-		{
-			if (sz == sizeof(CAlarmItem))
-			{
-				//add()에서 list에 표시도 하고 m_item에도 추가하지만 save_timelist()는 호출하지 않아야 한다.
-				//add()를 쓰자니 tStart도 별도로 처리해야하고 복잡해진다. 가공해서 리스트에 넣어주자.
-				//add(item->title, get_time_str(item->ts_duration.GetTotalSeconds()), false, item->is_floating, false);
-				int index = m_list.insert_item(-1, 0, item->title,
-												get_time_str(item->start),
-												get_time_str(item->ts_duration),
-												get_time_str(item->start + item->ts_duration),
-												_T(""),
-												get_date_str(item->start));
-				m_list.SetItemData(index, reinterpret_cast<DWORD_PTR>(item));
+		key.Format(_T("alarm%02d"), i);
 
-				//20260801 by claude. [진단] 각 아이템의 title / start / end / locked / floating.
-				CTime end = item->start + item->ts_duration;
-				logWrite(_T("[timelist] load item[%02d]: title=%s start=%s end=%s locked=%d floating=%d insert_index=%d"),
-					i, item->title,
-					get_time_str(item->start).GetString(),
-					get_time_str(end).GetString(),
-					(int)item->is_locked, (int)item->is_floating, index);
-			}
-			else
-			{
-				//20260801 by claude. [진단] sizeof 불일치 (구버전 CAlarmItem 잔재 가능).
-				logWrite(_T("[timelist] load item[%02d]: size mismatch (got=%u expected=%u) — skipped"),
-					i, sz, (UINT)sizeof(CAlarmItem));
-			}
-			//이 프로젝트에서는 GetProfileBinary()로 얻어온 값을 계속 사용해야 하므로 지워서는 안된다.
-			//delete[] reinterpret_cast<BYTE*>(item);
-		}
-		else
+		CString value = theApp.GetProfileString(_T("TimeListDlg"), key, _T(""));
+		if (value.IsEmpty())
 		{
 			//20260801 by claude. [진단] count 는 있는데 해당 key 가 없거나 read 실패.
-			logWrite(_T("[timelist] load item[%02d]: GetProfileBinary failed"), i);
+			logWrite(_T("[timelist] load item[%02d]: 값 없음"), i);
+			continue;
 		}
+
+		CAlarmItem* item = new CAlarmItem;
+		if (!item->from_string(value))
+		{
+			//20260802 by claude. [진단] 손상된 값. 이 항목만 버리고 나머지는 계속 읽는다.
+			logWrite(_T("[timelist] load item[%02d]: 파싱 실패 — %s"), i, value.GetString());
+			delete item;
+			continue;
+		}
+
+		int index = m_list.insert_item(-1, 0, item->title,
+										get_time_str(item->start),
+										get_time_str(item->ts_duration),
+										get_time_str(item->start + item->ts_duration),
+										_T(""),
+										get_date_str(item->start));
+		m_list.SetItemData(index, reinterpret_cast<DWORD_PTR>(item));
+
+		//20260801 by claude. [진단] 각 아이템의 title / start / end / locked / floating.
+		CTime end = item->start + item->ts_duration;
+		logWrite(_T("[timelist] load item[%02d]: title=%s start=%s end=%s locked=%d floating=%d fired=%d insert_index=%d"),
+			i, item->title.GetString(),
+			get_time_str(item->start).GetString(),
+			get_time_str(end).GetString(),
+			(int)item->is_locked, (int)item->is_floating, (int)item->fired, index);
 	}
 
 	//20260801 by claude. [진단] 최종 m_list.size() vs registry count 일치 여부.
@@ -688,14 +816,33 @@ void CTimeListDlg::refresh_remain_and_sort()
 	if (n == 0)
 		return;
 
+	CTime now = CTime::GetCurrentTime();
+
+	//20260802 by claude. 남은 시간이 다시 양수가 된 항목(현재 시각으로 다시 시작, 시작·간격·종료 시각
+	//편집)은 아직 울리지 않은 상태로 되돌린다. fired 가 남아 있으면 그 알람은 영영 울리지 않는다.
+	bool fired_cleared = false;
+	for (int i = 0; i < n; i++)
+	{
+		auto* it = (CAlarmItem*)m_list.GetItemData(i);
+		if (!it || !it->fired)
+			continue;
+
+		if (((it->start + it->ts_duration) - now).GetTotalSeconds() > 0)
+		{
+			it->fired = false;
+			fired_cleared = true;
+		}
+	}
+
+	if (fired_cleared)
+		save_timelist();
+
 	//항목이 1개뿐이면 정렬은 의미 없지만 floating 보장은 필요.
 	if (n == 1)
 	{
 		ensure_floating();
 		return;
 	}
-
-	CTime now = CTime::GetCurrentTime();
 
 	struct Row
 	{
@@ -744,32 +891,44 @@ void CTimeListDlg::refresh_remain_and_sort()
 
 void CTimeListDlg::save_timelist()
 {
-	AfxGetApp()->WriteProfileInt(_T("TimeListDlg"), _T("count"), m_list.size());
+	int prev_count = theApp.GetProfileInt(_T("TimeListDlg"), _T("count"), 0);
+	int count = m_list.size();
+
+	theApp.WriteProfileInt(_T("TimeListDlg"), _T("count"), count);
 
 	//20260801 by claude. [진단] save 시점의 count.
-	logWrite(_T("[timelist] save_timelist: count=%d"), (int)m_list.size());
+	logWrite(_T("[timelist] save_timelist: count=%d"), count);
 
-	for (int i = 0; i < m_list.size(); i++)
+	for (int i = 0; i < count; i++)
 	{
 		CString key;
-		key.Format(_T("item%02d"), i);
-		CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(i);
-		if (item)
-		{
-			AfxGetApp()->WriteProfileBinary(_T("TimeListDlg"), key, (LPBYTE)item, sizeof(CAlarmItem));
+		key.Format(_T("alarm%02d"), i);
 
-			//20260801 by claude. [진단] 저장된 각 아이템의 title / end / locked.
-			CTime end = item->start + item->ts_duration;
-			logWrite(_T("[timelist] save item[%02d]: title=%s end=%s locked=%d floating=%d"),
-				i, item->title,
-				get_time_str(end).GetString(),
-				(int)item->is_locked, (int)item->is_floating);
-		}
-		else
+		CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(i);
+		if (!item)
 		{
 			//20260801 by claude. [진단] m_list 에 있지만 item 데이터가 NULL — 이런 상태로 write 되지 않음.
 			logWrite(_T("[timelist] save item[%02d]: NULL data (not written)"), i);
+			continue;
 		}
+
+		theApp.WriteProfileString(_T("TimeListDlg"), key, item->to_string());
+
+		//20260801 by claude. [진단] 저장된 각 아이템의 title / end / locked.
+		CTime end = item->start + item->ts_duration;
+		logWrite(_T("[timelist] save item[%02d]: title=%s end=%s locked=%d floating=%d fired=%d"),
+			i, item->title.GetString(),
+			get_time_str(end).GetString(),
+			(int)item->is_locked, (int)item->is_floating, (int)item->fired);
+	}
+
+	//20260802 by claude. 항목이 줄었을 때 남는 잔재 키를 지운다. 남겨두면 이후 count 가 다시 늘었을 때
+	//그 자리의 쓰기가 실패하면 옛 항목이 되살아난다.
+	for (int i = count; i < prev_count; i++)
+	{
+		CString key;
+		key.Format(_T("alarm%02d"), i);
+		theApp.WriteProfileString(_T("TimeListDlg"), key, NULL);
 	}
 }
 
@@ -801,6 +960,11 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 	{
 		//if (!m_item[i].is_paused)
 		CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(i);
+
+		//20260802 by claude. save_timelist 가 NULL data 경로를 로그로 남기고 있어 발생 가능한 상태다.
+		if (!item)
+			continue;
+
 		has_floating = has_floating || item->is_floating;
 		//trace(item->start);
 		//trace(item->ts_duration);
@@ -832,12 +996,22 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 
 
 		//해당 시각이면 알림을 띠워주고
-		if (remain_seconds == 0)
+		//20260802 by claude. remain == 0 정확 일치는 그 1초에 tick 이 들어오지 못하면(절전 복귀·
+		//시각 점프·1초 이상 메시지 펌프 정지) 알람이 영영 울리지 않는다. 지났으면 발동한다.
+		//단 alarm_expire_seconds 를 넘겨 지난 것은 울리지 않는다 — 밤새 절전이었다면 그 사이 만료된
+		//알람들이 깨어난 순간 한꺼번에 뜬다. 아래 자동 삭제와 같은 기준이라 그대로 목록에서 사라진다.
+		if (!item->fired && remain_seconds <= 0 && remain_seconds > -alarm_expire_seconds)
 		{
+			//fired 를 먼저 세우고 저장한다. 아래 DoModal 이 메시지를 펌프하는 동안 이 OnTimer 가
+			//재진입해도 중복 발화하지 않고, 모달이 떠 있는 사이에 앱이 죽어도 다시 울리지 않는다.
+			item->fired = true;
+			save_timelist();
+
 			//20260801 by claude. [진단] beep 발동 확정 — 이 라인이 로그에 없으면 소리는 이 앱이 아님.
-			logWrite(_T("[timelist] BEEP fire: idx=%d title=%s end=%s locked=%d floating=%d"),
-				i, item->title,
+			logWrite(_T("[timelist] BEEP fire: idx=%d title=%s end=%s remain=%I64d locked=%d floating=%d"),
+				i, item->title.GetString(),
 				get_time_str(end).GetString(),
+				remain_seconds,
 				(int)item->is_locked, (int)item->is_floating);
 
 			::MessageBeep(MB_ICONEXCLAMATION);
@@ -853,11 +1027,12 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 			}
 
 			//10분이 지났다면 목록에서 완전 삭제한다.
-			if (remain_seconds < -600)
+			if (remain_seconds < -alarm_expire_seconds)
 			{
 				//20260801 by claude. [진단] 10 분 경과 auto-delete.
-				logWrite(_T("[timelist] auto-delete (>10min past): idx=%d title=%s end=%s"),
-					i, item->title, get_time_str(end).GetString());
+				//20260802 by claude. fired=0 으로 삭제된 항목 = 울리지 못한 채 만료 (절전·앱 종료 구간).
+				logWrite(_T("[timelist] auto-delete (>10min past): idx=%d title=%s end=%s fired=%d"),
+					i, item->title.GetString(), get_time_str(end).GetString(), (int)item->fired);
 
 				if (item->is_floating)
 					has_floating = false;
@@ -1026,7 +1201,7 @@ void CTimeListDlg::OnMenuDelete()
 		{
 			//20260801 by claude. [진단] 잠금 항목 스킵 — 사용자 인지 여부 확인용.
 			logWrite(_T("[timelist] OnMenuDelete skip locked: idx=%d title=%s"),
-				selected[i], item->title);
+				selected[i], item->title.GetString());
 			locked_skipped++;
 			continue;
 		}
@@ -1037,7 +1212,7 @@ void CTimeListDlg::OnMenuDelete()
 		//20260801 by claude. [진단] 삭제 대상 identify.
 		CTime end = item->start + item->ts_duration;
 		logWrite(_T("[timelist] OnMenuDelete delete: idx=%d title=%s end=%s"),
-			selected[i], item->title, get_time_str(end).GetString());
+			selected[i], item->title.GetString(), get_time_str(end).GetString());
 
 		delete item;
 		m_list.delete_item(selected[i]);
@@ -1078,6 +1253,11 @@ void CTimeListDlg::on_menu_favorites(UINT nID)
 	std::deque<CString> token;
 	get_token_str(str, token, _T("|"));
 
+	//20260802 by claude. 메뉴를 구성하는 OnContextMenu 는 같은 검사를 하고 있으나 여기에는 없었다.
+	//레지스트리 값이 손상되면 token[1] 이 범위 밖 접근이 된다.
+	if (token.size() < 2)
+		return;
+
 	add(token[0], token[1], false, (token.size() == 3 ? _ttoi(token[2]) : false));
 }
 
@@ -1094,7 +1274,7 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 
 	if (sub_item == col_title)
 	{
-		_tcscpy_s(data->title, _countof(data->title), text);
+		data->title = text;
 	}
 	else if (sub_item == col_start)
 	{

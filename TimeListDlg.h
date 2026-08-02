@@ -13,22 +13,29 @@
 class CAlarmItem
 {
 public:
-	CAlarmItem(TCHAR* _title, CTime _start, CTimeSpan _ts_duration, bool _is_locked, bool _is_floating)
+	CAlarmItem() {}
+	CAlarmItem(CString _title, CTime _start, CTimeSpan _ts_duration, bool _is_locked, bool _is_floating)
 	{
-		_tcscpy_s(title, sizeof(title) / sizeof(TCHAR),	_title);
+		title = _title;
 		start = _start;
 		ts_duration = _ts_duration;
 		is_locked = _is_locked;
 		is_floating = _is_floating;
-		is_paused = false;
 	}
 
-	TCHAR		title[16] = { 0, };
-	CTime		start = 0;
-	CTimeSpan	ts_duration;
+	//레지스트리 저장용 문자열. 필드 구분자는 '|' 이며 title 이 마지막이라 title 에 '|' 가 섞여도 안전하다.
+	CString		to_string() const;
+	//to_string() 형식을 파싱한다. 구분자가 모자라면 false 를 반환하며 이때 멤버는 변경되지 않는다.
+	bool		from_string(const CString& str);
+
+	CString		title;
+	CTime		start = CTime(0);
+	CTimeSpan	ts_duration = CTimeSpan(0);
 	bool		is_locked = false;
 	bool		is_floating = false;
 	bool		is_paused = false;		//타이머 일시 정지. 종료 시각이 늘어난다.
+	//발화 완료. 발화 판정이 remain == 0 정확 일치에서 remain <= 0 으로 바뀌었으므로 중복 발화를 막는다.
+	bool		fired = false;
 };
 
 // CTimeListDlg 대화 상자
@@ -54,12 +61,19 @@ protected:
 	CSCMessageBox	m_msgbox;
 	void			load_timelist();
 	void			save_timelist();
+	//구버전(REG_BINARY, item%02d)으로 저장된 항목을 신규 문자열 형식(alarm%02d)으로 1회 변환한다.
+	//변환 후 legacy 키는 삭제하고 schema\timelist_version 을 올려 다시 실행되지 않게 한다.
+	void			migrate_timelist_from_binary();
 	//모든 항목의 col_remain 텍스트를 CAlarmItem (start + duration - now) 기준으로 동기화 후
 	//남은 시각 오름차순 정렬. add/edit 직후 호출.
 	void			refresh_remain_and_sort();
 	//floating 항목이 1개도 없다면 0번 항목(가장 임박)을 floating 으로 보정.
 	//정렬 직후 / 삭제 직후 등 리스트 변경 시점에 호출.
 	void			ensure_floating();
+
+	//만료 후 이 시간이 지나면 알람으로서 의미가 없다고 보고 (1) 발동시키지 않고 (2) 목록에서 삭제한다.
+	//두 판정이 같은 기준을 써야 "울리지도 않았는데 남아있는" 또는 "한참 지나서 울리는" 항목이 안 생긴다.
+	enum { alarm_expire_seconds = 600 };
 
 	enum TIMER_ID
 	{
