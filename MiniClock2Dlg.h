@@ -39,6 +39,9 @@ protected:
 		timer_gpu_temperature,
 		timer_on_top,
 		timer_audio_alpha_restore,
+		//20260802 by claude. 오디오 재생 감지는 프로세스 스냅샷 + WASAPI 세션 열거라 비싸다.
+		//매초 도는 render() 에서 빼내어 이 주기로만 검사한다.
+		timer_audio_detect,
 		//hover 로 timelist 를 띄운 동안만 동작 — WM_MOUSELEAVE 는 창당 1회만 발화하므로
 		//main→timelist→외부 경로에서 main 이 두 번째 leave 를 못 받음. 폴링으로 커서가 두 창 어느 쪽에도
 		//없으면 timelist hide.
@@ -86,8 +89,19 @@ protected:
 	//우클릭 컨텍스트 메뉴 표시 중 — 메뉴 위로 마우스가 이동하면 main dlg 가 leave 를 받아
 	//hover 로직이 timelist 를 감추거나 알파를 낮추는 부작용을 유발. TrackPopupMenu 사이에는 hover 처리 skip.
 	bool				m_context_menu_open = false;
-	void				render(Gdiplus::Bitmap* img);;
+	void				render(Gdiplus::Bitmap* img);
 	void				rebuild_image();
+
+	//20260802 by claude. 레이어드 윈도우 합성용 백버퍼. 매 프레임 새로 만들면 초당 GDI 객체
+	//생성·파괴가 반복되고 실패 경로마다 해제를 빠뜨리기 쉽다. 크기가 바뀔 때만 다시 만든다.
+	HDC					m_hdc_render = NULL;
+	HBITMAP				m_hbmp_render = NULL;
+	HBITMAP				m_hbmp_render_old = NULL;
+	void*				m_render_bits = NULL;
+	CSize				m_sz_render = CSize(0, 0);
+	//요청 크기의 백버퍼를 확보한다. 이미 같은 크기면 아무것도 하지 않고 true.
+	bool				prepare_render_buffer(HDC hDC, SIZE sz);
+	void				release_render_buffer();
 
 	void				load_setting();
 	void				save_setting();
@@ -96,6 +110,10 @@ protected:
 	POINT				m_drag_start = {};
 
 	CString				m_system_shutdown;	//종료 시각(ex. "2350")
+	//20260802 by claude. hhmm 문자열 == 비교는 그 1초에 tick 이 들어오지 못하면(절전 복귀·시각 점프·
+	//1초 이상 메시지 펌프 정지) 예약이 영영 발동하지 않는다. 설정 시점에 절대 시각으로 환산해 두고
+	//now >= target 으로 판정한다. m_system_shutdown 이 비어 있으면 이 값은 무효.
+	CTime				m_system_shutdown_time = CTime(0);
 
 	//모니터를 끄면 OS 가 사라진 모니터의 윈도우들을 visible 모니터로 자동 reposition 한다.
 	//그 시점에 OnWindowPosChanged 가 발생해 의도치 않은 좌표가 레지스트리에 저장되면

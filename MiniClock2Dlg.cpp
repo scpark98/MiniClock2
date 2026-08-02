@@ -212,6 +212,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	SetTimer(timer_time, 1000, NULL);
 	SetTimer(timer_gpu_temperature, 500, NULL);
 	SetTimer(timer_on_top, 5000, NULL);
+	SetTimer(timer_audio_detect, 5000, NULL);
 
 	//현재 모니터 개수를 정상 상태로 기록. 이후 WM_DISPLAYCHANGE 에서 줄어들면 lock.
 	enum_display_monitors();
@@ -388,6 +389,67 @@ void CMiniClock2Dlg::OnBnClickedCancel()
 	CDialogEx::OnCancel();
 }
 
+bool CMiniClock2Dlg::prepare_render_buffer(HDC hDC, SIZE sz)
+{
+	if (sz.cx <= 0 || sz.cy <= 0)
+		return false;
+
+	if (m_hbmp_render && m_sz_render.cx == sz.cx && m_sz_render.cy == sz.cy)
+		return true;
+
+	release_render_buffer();
+
+	m_hdc_render = ::CreateCompatibleDC(hDC);
+	if (!m_hdc_render)
+		return false;
+
+	BITMAPINFOHEADER bmih = { 0 };
+	bmih.biSize = sizeof(BITMAPINFOHEADER);
+	bmih.biWidth = sz.cx;
+	bmih.biHeight = sz.cy;
+	bmih.biPlanes = 1;
+	bmih.biBitCount = 32;
+	bmih.biCompression = BI_RGB;
+	bmih.biClrUsed = 0;
+	bmih.biSizeImage = (((sz.cx * 32 + 31) & (~31)) >> 3) * sz.cy;
+
+	m_hbmp_render = ::CreateDIBSection(NULL, (PBITMAPINFO)&bmih, DIB_RGB_COLORS, &m_render_bits, NULL, 0);
+	if (!m_hbmp_render)
+	{
+		release_render_buffer();
+		return false;
+	}
+
+	m_hbmp_render_old = (HBITMAP)::SelectObject(m_hdc_render, m_hbmp_render);
+	m_sz_render = CSize(sz.cx, sz.cy);
+
+	return true;
+}
+
+void CMiniClock2Dlg::release_render_buffer()
+{
+	if (m_hdc_render)
+	{
+		if (m_hbmp_render_old)
+		{
+			::SelectObject(m_hdc_render, m_hbmp_render_old);
+			m_hbmp_render_old = NULL;
+		}
+
+		::DeleteDC(m_hdc_render);
+		m_hdc_render = NULL;
+	}
+
+	if (m_hbmp_render)
+	{
+		::DeleteObject(m_hbmp_render);
+		m_hbmp_render = NULL;
+	}
+
+	m_render_bits = NULL;
+	m_sz_render = CSize(0, 0);
+}
+
 void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 {
 	if (!IsWindow(m_hWnd) || !img)
@@ -397,30 +459,10 @@ void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 	GetWindowRect(rc);
 	POINT ptSrc = { 0, 0 };
 	POINT ptWinPos = { rc.left, rc.top };
-	SIZE sz;
-	//PotPlayer64.exe / Endorphin(2).exe 가 재생 중일 때 알파를 낮춰 시야 가림 최소화.
-	//사운드가 멈춰도 즉시 복원하지 않고 timer_audio_alpha_restore 로 n초 대기 후 복원 —
-	//트랙 이동·짧은 무음 구간에서 알파가 펄럭이는 산만함 방지.
+
+	//PotPlayer64.exe / Endorphin(2).exe 가 재생 중이면 알파를 낮춰 시야 가림 최소화.
+	//재생 여부 판정 자체는 timer_audio_detect 가 담당하고 여기서는 그 결과만 읽는다.
 	int alpha_eff = m_alpha;
-	bool audio_active = (is_process_audio_active(_T("PotPlayer64.exe")) ||
-		is_process_audio_active(_T("Endorphin.exe")) ||
-		is_process_audio_active(_T("Endorphin2.exe")));
-
-	if (audio_active)
-	{
-		if (m_audio_alpha_restore_pending)
-		{
-			KillTimer(timer_audio_alpha_restore);
-			m_audio_alpha_restore_pending = false;
-		}
-		m_audio_alpha_lowered = true;
-	}
-	else if (m_audio_alpha_lowered && !m_audio_alpha_restore_pending)
-	{
-		SetTimer(timer_audio_alpha_restore, 2000, NULL);
-		m_audio_alpha_restore_pending = true;
-	}
-
 	if (m_audio_alpha_lowered && !m_mouse_hover)
 		alpha_eff = (int)(m_alpha * 0.2);
 
@@ -429,61 +471,44 @@ void CMiniClock2Dlg::render(Gdiplus::Bitmap* img)
 
 	BLENDFUNCTION stBlend = { AC_SRC_OVER, 0, (BYTE)alpha_eff, AC_SRC_ALPHA };
 
-	if (img == NULL)
-		sz = CSize(1, 1);
-	else
-		sz = CSize(img->GetWidth(), img->GetHeight());
+	SIZE sz = { (LONG)img->GetWidth(), (LONG)img->GetHeight() };
 
 	HDC hDC = ::GetDC(m_hWnd);
-	HDC hdcMemory = ::CreateCompatibleDC(hDC);
-
-	BITMAPINFOHEADER bmih = { 0 };
-	int nBytesPerLine = ((sz.cx * 32 + 31) & (~31)) >> 3;
-	bmih.biSize = sizeof(BITMAPINFOHEADER);
-	bmih.biWidth = sz.cx;
-	bmih.biHeight = sz.cy;
-	bmih.biPlanes = 1;
-	bmih.biBitCount = 32;
-	bmih.biCompression = BI_RGB;
-	bmih.biClrUsed = 0;
-	bmih.biSizeImage = nBytesPerLine * sz.cy;
-
-	PVOID pvBits = NULL;
-	HBITMAP hbmpMem = ::CreateDIBSection(NULL, (PBITMAPINFO)&bmih, DIB_RGB_COLORS, &pvBits, NULL, 0);
-	if (!hbmpMem)
+	if (!hDC)
 		return;
 
-	memset(pvBits, 0, sz.cx * sz.cy * 4);
-	if (hbmpMem)
+	//20260802 by claude. 이전에는 실패 시 그냥 return 해서 GetDC/CreateCompatibleDC 핸들이 샜다.
+	//매초 도는 경로라 GDI 고갈이 시작되면 누수가 가속된다.
+	if (!prepare_render_buffer(hDC, sz))
 	{
-		HGDIOBJ hbmpOld = ::SelectObject(hdcMemory, hbmpMem);
-		Gdiplus::Graphics g(hdcMemory);
+		::ReleaseDC(m_hWnd, hDC);
+		return;
+	}
+
+	memset(m_render_bits, 0, (((sz.cx * 32 + 31) & (~31)) >> 3) * sz.cy);
+
+	{
+		Gdiplus::Graphics g(m_hdc_render);
 
 		g.SetPageScale(1.0);
 		g.SetPageUnit(Gdiplus::UnitPixel);
 		g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
 
 		g.DrawImage(img, 0, 0, sz.cx, sz.cy);
-		//Draw customized figures
-		//g.DrawRectangle(&Pen(Color(255, 255, 0, 0), 1.0f), Gdiplus::Rect(0, 0, sz.cx - 1, sz.cy - 1));
-
-		::UpdateLayeredWindow(m_hWnd
-			, hDC
-			, &ptWinPos
-			, &sz
-			, hdcMemory
-			, &ptSrc
-			, 0
-			, &stBlend
-			, ULW_ALPHA
-		);
-
-		g.ReleaseHDC(hdcMemory);
-		::SelectObject(hdcMemory, hbmpOld);
-		::DeleteObject(hbmpMem);
 	}
+	//Graphics 를 먼저 소멸시켜 GDI+ 가 백버퍼에 flush 한 뒤 GDI 로 합성한다.
 
-	::DeleteDC(hdcMemory);
+	::UpdateLayeredWindow(m_hWnd
+		, hDC
+		, &ptWinPos
+		, &sz
+		, m_hdc_render
+		, &ptSrc
+		, 0
+		, &stBlend
+		, ULW_ALPHA
+	);
+
 	::ReleaseDC(m_hWnd, hDC);
 }
 
@@ -673,6 +698,35 @@ void CMiniClock2Dlg::OnTimer(UINT_PTR nIDEvent)
 		ime_convert(m_hWnd, true);
 		m_first_run = false;
 	}
+	else if (nIDEvent == timer_audio_detect)
+	{
+		//20260802 by claude. 프로세스 스냅샷 + WASAPI 세션 열거를 매초 3회 돌리던 것을 5초 1회로.
+		//이름 목록을 한 번에 넘겨 스냅샷·세션 열거가 이름 개수와 무관하게 1회만 수행된다.
+		//사운드가 멈춰도 즉시 복원하지 않고 timer_audio_alpha_restore 로 n초 대기 후 복원 —
+		//트랙 이동·짧은 무음 구간에서 알파가 펄럭이는 산만함 방지.
+		bool audio_active = is_process_audio_active(
+			{ _T("PotPlayer64.exe"), _T("Endorphin.exe"), _T("Endorphin2.exe") });
+
+		if (audio_active)
+		{
+			if (m_audio_alpha_restore_pending)
+			{
+				KillTimer(timer_audio_alpha_restore);
+				m_audio_alpha_restore_pending = false;
+			}
+
+			if (!m_audio_alpha_lowered)
+			{
+				m_audio_alpha_lowered = true;
+				rebuild_image();
+			}
+		}
+		else if (m_audio_alpha_lowered && !m_audio_alpha_restore_pending)
+		{
+			SetTimer(timer_audio_alpha_restore, 2000, NULL);
+			m_audio_alpha_restore_pending = true;
+		}
+	}
 	else if (nIDEvent == timer_audio_alpha_restore)
 	{
 		KillTimer(timer_audio_alpha_restore);
@@ -690,11 +744,17 @@ void CMiniClock2Dlg::rebuild_image()
 
 	CTime t = CTime::GetCurrentTime();
 
-	CString cur_time;
-	cur_time.Format(_T("%02d%02d%02d"), t.GetHour(), t.GetMinute(), t.GetSecond());
-	if (m_system_shutdown + _T("00") == cur_time)
+	//20260802 by claude. 예약 시각을 지났으면 발동. 발동 직후 예약을 비워 종료 시퀀스가 진행되는
+	//동안 매초 SystemShutdownNT 가 재호출되는 것을 막는다.
+	if (!m_system_shutdown.IsEmpty() && t >= m_system_shutdown_time)
+	{
+		logWrite(_T("시스템 종료 실행. 예약=%s 현재=%s"),
+			get_datetime_str(m_system_shutdown_time).GetString(),
+			get_datetime_str(t).GetString());
+
+		m_system_shutdown.Empty();
 		SystemShutdownNT(SHUTDOWN_POWEROFF);
-		//m_msgbox.DoModal(_T("시스템이 자동으로 종료됩니다."), MB_OK, 3);
+	}
 
 	m_para.clear();
 	CSCParagraph::build_paragraph_str(str, m_para, &m_text_prop);
@@ -711,7 +771,15 @@ void CMiniClock2Dlg::rebuild_image()
 		r.InflateRect((int)m_text_prop.round_thickness + 2, (int)m_text_prop.round_thickness + 2);
 	}
 
-	m_img.create(r.Width(), r.Height(), Gdiplus::Color::Transparent, PixelFormat32bppARGB);
+	//20260802 by claude. 시:분:초만 바뀌고 크기는 대개 그대로다. 같은 크기면 비트맵을 재사용한다.
+	//어차피 아래에서 g.Clear() 로 전면을 지우므로 create 의 초기 색은 의미가 없다.
+	if (!m_img.m_pBitmap ||
+		(int)m_img.m_pBitmap->GetWidth() != r.Width() ||
+		(int)m_img.m_pBitmap->GetHeight() != r.Height())
+	{
+		m_img.create(r.Width(), r.Height());
+	}
+
 	r = CRect(0, 0, r.Width(), r.Height());
 	r = CSCParagraph::calc_text_rect(r, &dc, m_para, DT_CENTER | DT_VCENTER);
 
@@ -736,6 +804,7 @@ void CMiniClock2Dlg::OnMenuColor()
 
 	m_text_prop.cr_text = picker.get_selected_color();
 	rebuild_image();
+	save_setting();
 }
 
 BOOL CMiniClock2Dlg::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
@@ -745,6 +814,7 @@ BOOL CMiniClock2Dlg::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	{
 		m_text_prop.size += (zDelta > 0 ? 1 : -1);
 		rebuild_image();
+		save_setting();
 	}
 
 	return CDialogEx::OnMouseWheel(nFlags, zDelta, pt);
@@ -808,10 +878,10 @@ void CMiniClock2Dlg::OnMenuFont()
 
 	dlg.GetCurrentFont(&lf);
 	_tcscpy_s(m_text_prop.name, lf.lfFaceName);
-	int size = dlg.GetSize();
 	m_text_prop.size = get_font_size_from_pixel_size(m_hWnd, lf.lfHeight);
 	m_text_prop.style = (dlg.IsBold() ? Gdiplus::FontStyleBold : 0) | (dlg.IsItalic() ? Gdiplus::FontStyleItalic : 0);
 
+	rebuild_image();
 	save_setting();
 }
 
@@ -829,30 +899,45 @@ void CMiniClock2Dlg::OnMenuAlwaysOnTop()
 
 void CMiniClock2Dlg::OnMenuShutdown()
 {
-	CShutdownTimeDlg dlg;
+	CString shutdown_time;
 
-	if (dlg.DoModal() == IDCANCEL)
-		return;
-
-	if (dlg.m_shutdown_time == "")
+	//20260802 by claude. 이전에는 잘못된 입력마다 OnMenuShutdown() 을 자기 재귀 호출해서
+	//입력을 틀릴 때마다 모달이 스택에 쌓였다.
+	while (true)
 	{
-		m_system_shutdown = dlg.m_shutdown_time;
-		::PlaySound(MAKEINTRESOURCE(IDR_WAVE_DING_MID), GetModuleHandle(NULL), SND_RESOURCE | SND_ASYNC);
-		m_msgbox.DoModal(_T("시스템 종료 예약이 해제되었습니다."), MB_OK, 3);
-		return;
-	}
+		CShutdownTimeDlg dlg;
+		if (dlg.DoModal() == IDCANCEL)
+			return;
 
-	if (dlg.m_shutdown_time.GetLength() != 4 || dlg.m_shutdown_time < _T("0000") || dlg.m_shutdown_time > _T("2359"))
-	{
+		shutdown_time = dlg.m_shutdown_time;
+
+		if (shutdown_time.IsEmpty())
+		{
+			logWrite(_T("공백 입력으로 시스템 종료 예약 해제됨."));
+			m_system_shutdown.Empty();
+			::PlaySound(MAKEINTRESOURCE(IDR_WAVE_DING_MID), GetModuleHandle(NULL), SND_RESOURCE | SND_ASYNC);
+			m_msgbox.DoModal(_T("시스템 종료 예약이 해제되었습니다."), MB_OK, 3);
+			return;
+		}
+
+		if (shutdown_time.GetLength() == 4 && shutdown_time >= _T("0000") && shutdown_time <= _T("2359"))
+			break;
+
 		m_msgbox.DoModal(_T("올바르지 않은 시간 설정입니다.\n\nex)밤 11시 50분에 종료하려면\"2350\"을 입력하세요\n\n빈 문자열을 입력하면 자동 종료 기능이 해제됩니다."));
-		OnMenuShutdown();
-		return;
 	}
 
-	m_system_shutdown = dlg.m_shutdown_time;
+	m_system_shutdown = shutdown_time;
+
+	//20260802 by claude. hhmm 을 절대 시각으로 환산. 이미 지난 시각이면 다음 날 그 시각을 의도한 것으로 본다.
+	CTime now = CTime::GetCurrentTime();
+	m_system_shutdown_time = CTime(now.GetYear(), now.GetMonth(), now.GetDay(),
+		_ttoi(m_system_shutdown.Left(2)), _ttoi(m_system_shutdown.Right(2)), 0);
+	if (m_system_shutdown_time <= now)
+		m_system_shutdown_time += CTimeSpan(1, 0, 0, 0);
 
 	CString str;
 	str.Format(_T("%s시 %s분에 시스템이 자동 종료됩니다."), m_system_shutdown.Left(2), m_system_shutdown.Right(2));
+	logWrite(_T("%s"), str);
 	::PlaySound(MAKEINTRESOURCE(IDR_WAVE_DING_MID), GetModuleHandle(NULL), SND_RESOURCE | SND_ASYNC);
 	m_msgbox.DoModal(str, MB_OK, 3);
 }
@@ -1103,6 +1188,9 @@ void CMiniClock2Dlg::OnDestroy()
 		::DestroyAcceleratorTable(m_hAccel);
 		m_hAccel = NULL;
 	}
+
+	release_render_buffer();
+
 	CDialogEx::OnDestroy();
 }
 
