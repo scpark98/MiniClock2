@@ -966,8 +966,8 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 			continue;
 
 		has_floating = has_floating || item->is_floating;
-		//trace(item->start);
-		//trace(item->ts_duration);
+		//sctrace(item->start);
+		//sctrace(item->ts_duration);
 		//TRACE(_T("start: %s, duration: %s\n"), get_time_str(item->start), get_time_str(item->ts_duration));
 		CTime end = item->start + item->ts_duration;
 		CTimeSpan remain = end - t;
