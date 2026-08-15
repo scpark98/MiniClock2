@@ -994,7 +994,7 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 			//한글 폰트로 바꾸고 </f></sz></st> 로 닫아 시각 행은 기존 표시 그대로 유지한다.
 			//외곽선도 기본값(1.6)은 작은 한글의 속을 메우므로 이름 행에서만 얇게 준다.
 			CString text_floating;
-			text_floating.Format(_T("<f=맑은 고딕><sz=9><st=1><cr=#%08X>%s</cr></st></sz></f><br>%s"),
+			text_floating.Format(_T("<f=맑은 고딕><sz=12><st=1><cr=#%08X>%s</cr></st></sz></f><br>%s"),
 				cr_title.GetValue(), item->title.GetString(), str.GetString());
 
 			setting->text = text_floating;
