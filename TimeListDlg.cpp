@@ -984,7 +984,20 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 		if (item->is_floating)
 		{
 			CSCShapeDlgTextSetting* setting = m_floating.get_text_setting();
-			setting->text = str;
+
+			//20260815 by claude. 제목 색은 시각보다 채널당 32 만큼 진하게. 만료되면 아래 set_text_color 가
+			//글자색을 붉게 바꾸므로 상수로 박지 않고 그 시점의 색에서 계산해 같이 따라가게 한다.
+			Gdiplus::Color cr_title = get_color(setting->text_prop.cr_text, -32);
+
+			//20260815 by claude. 1행 = 이름, 2행 = 남은시각.
+			//기본 폰트인 DSEG7 Classic 은 7세그먼트 숫자 폰트라 한글 글리프가 없다. 이름 행만
+			//한글 폰트로 바꾸고 </f></sz></st> 로 닫아 시각 행은 기존 표시 그대로 유지한다.
+			//외곽선도 기본값(1.6)은 작은 한글의 속을 메우므로 이름 행에서만 얇게 준다.
+			CString text_floating;
+			text_floating.Format(_T("<f=맑은 고딕><sz=9><st=1><cr=#%08X>%s</cr></st></sz></f><br>%s"),
+				cr_title.GetValue(), item->title.GetString(), str.GetString());
+
+			setting->text = text_floating;
 			m_floating.set_text(setting);
 #ifdef _DEBUG
 			//m_floating.save(_T("D:\\floating.png"));
