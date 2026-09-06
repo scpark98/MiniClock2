@@ -13,10 +13,10 @@
 
 // CTimeListDlg 대화 상자
 
-IMPLEMENT_DYNAMIC(CTimeListDlg, CDialogEx)
+IMPLEMENT_DYNAMIC(CTimeListDlg, CSCThemeDlg)
 
 CTimeListDlg::CTimeListDlg(CWnd* pParent /*=nullptr*/)
-	: CDialogEx(IDD_TIME_LIST, pParent)
+	: CSCThemeDlg(IDD_TIME_LIST, pParent)
 {
 
 }
@@ -27,15 +27,14 @@ CTimeListDlg::~CTimeListDlg()
 
 void CTimeListDlg::DoDataExchange(CDataExchange* pDX)
 {
-	CDialogEx::DoDataExchange(pDX);
+	CSCThemeDlg::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_STATIC_ALARM_LIST, m_static_alarm_list);
 	DDX_Control(pDX, IDC_CHECK_AUTO_HIDE, m_check_autohide);
 	DDX_Control(pDX, IDC_LIST_TIME, m_list);
 }
 
 
-BEGIN_MESSAGE_MAP(CTimeListDlg, CDialogEx)
-	ON_WM_ERASEBKGND()
+BEGIN_MESSAGE_MAP(CTimeListDlg, CSCThemeDlg)
 	ON_WM_WINDOWPOSCHANGED()
 	ON_BN_CLICKED(IDOK, &CTimeListDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDCANCEL, &CTimeListDlg::OnBnClickedCancel)
@@ -44,11 +43,6 @@ BEGIN_MESSAGE_MAP(CTimeListDlg, CDialogEx)
 	ON_WM_CONTEXTMENU()
 	ON_COMMAND_RANGE(menu_favorite_start, menu_favorite_start + 100, on_menu_favorites)
 	ON_WM_GETMINMAXINFO()
-	ON_WM_PAINT()
-	//ON_WM_NCPAINT()
-	ON_WM_NCCALCSIZE()
-	ON_WM_NCACTIVATE()
-	ON_WM_NCHITTEST()
 	ON_WM_TIMER()
 	ON_WM_ACTIVATEAPP()
 	ON_BN_CLICKED(IDC_CHECK_AUTO_HIDE, &CTimeListDlg::OnBnClickedCheckAutoHide)
@@ -69,29 +63,19 @@ END_MESSAGE_MAP()
 
 BOOL CTimeListDlg::OnInitDialog()
 {
-	CDialogEx::OnInitDialog();
+	//20260906 by claude. 자체 타이틀 영역(IDC_STATIC_ALARM_LIST + Auto Hide)을 쓰므로 CSCThemeDlg 의
+	//타이틀바는 끈다. set_titlebar_height() 는 Invalidate() 를 부르는데 아직 창이 없으므로 멤버 직접 세팅.
+	m_titlebar_height = 0;
 
-	// TODO:  여기에 추가 초기화 작업을 추가합니다.
-	LONG_PTR style = ::GetWindowLongPtr(m_hWnd, GWL_STYLE);
+	//borderless chrome(스타일 정규화 / NC 축소·칠하기 / DWM dark·round·border / 8px resize hit-test)은
+	//전부 CSCThemeDlg 가 대행한다. BookmarkEditDlg 와 같은 구조이며, 자체 구현하던 코드는 모두 제거했다.
+	CSCThemeDlg::OnInitDialog();
 
-	// 캡션 + 모든 테두리 제거
-	style &= ~(WS_CAPTION | WS_THICKFRAME | WS_BORDER | WS_DLGFRAME);
-	style |= WS_THICKFRAME; // resize는 가능하도록 테두리는 남긴다.
-	//OnPaint 가 client 전체를 GRAY(32) 로 칠하는데 WS_CLIPCHILDREN 이 없으면
-	//자식(체크박스/리스트) 영역까지 덮어써버린다. 자식은 부모 invalidate 로는 자동 재그리지 않아
-	//OnNcActivate 의 Invalidate() 후 체크박스 V/박스가 사라진 상태로 남는다.
-	style |= WS_CLIPCHILDREN;
+	//배경 fill 이 자식 위를 덮어 체크박스 V 가 사라지던 문제 방지.
+	ModifyStyle(0, WS_CLIPCHILDREN);
 
-	::SetWindowLongPtr(m_hWnd, GWL_STYLE, style);
-
-	//WS_EX_COMPOSITED ? OS-level 더블버퍼링. hide→show 시 OS 가 backbuffer 에 paint 완료 후 한 번에
-	//compose 해서 흰색→dark theme flash 가 사라진다. WS_EX_TOOLWINDOW/TOPMOST 등과 병행 가능.
+	//OS-level 더블버퍼링. hide→show 시 흰색→dark theme flash 방지.
 	ModifyStyleEx(0, WS_EX_COMPOSITED);
-
-	// 반드시 필요 (프레임 다시 계산)
-	::SetWindowPos(m_hWnd, nullptr, 0, 0, 0, 0,
-		SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-		SWP_NOACTIVATE | SWP_FRAMECHANGED);
 
 	init_list();
 
@@ -100,14 +84,8 @@ BOOL CTimeListDlg::OnInitDialog()
 	m_resize.Add(IDC_CHECK_AUTO_HIDE, 100, 0, 0, 0);
 	m_resize.Add(IDC_LIST_TIME, 0, 0, 100, 100);
 
-	m_static_alarm_list.set_color(GRAY128, GRAY32);
 	m_static_alarm_list.set_font_weight();
 
-	//RGB()/GRAY() 매크로는 COLORREF (alpha=0). Gdiplus::Color 인자로 넘기면
-	//ARGB 0x00xxxxxx → 알파 0 → GDI+ Pen/Brush 로 그리면 완전 투명. V 자 체크가 안 그려졌던 원인.
-	//Pen/Brush 로 그려지는 항목은 반드시 gGRAY()/gRGB() (alpha=255) 를 써야 한다.
-	m_check_autohide.set_back_color(gGRAY(32), false);
-	m_check_autohide.set_text_color(gGRAY(128), false);// Gdiplus::Color::LightBlue, gGRAY(192), gGRAY(192));
 	m_check_autohide.set_font_weight(FW_BOLD);
 	m_check_autohide.SetCheck(theApp.GetProfileInt(_T("TimeListDlg"), _T("auto hide"), false));
 
@@ -121,8 +99,14 @@ BOOL CTimeListDlg::OnInitDialog()
 	RestoreWindowPosition(&theApp, this, _T("TimeListDlg"));// , false, true, true);
 
 	m_msgbox.create(this, _T("MiniClock2"), IDR_MAINFRAME);
-	m_msgbox.set_color_theme(CSCColorTheme::color_theme_dark_gray);
 	m_msgbox.set_show_on_parent_center(false);
+
+	//20260906 by claude. 색은 여기 한 곳에서만 준다 (Common claude.md §2.1). 자식이 모두 만들어진 뒤에
+	//호출해야 set_color_theme 이 전부에 전파된다. cr_back 만 이 앱의 기존 배경색(GRAY 32)으로 —
+	//dark_gray 기본값은 GRAY 64 라 더 밝다.
+	CSCColorTheme theme(this, CSCColorTheme::color_theme_dark_gray);
+	theme.cr_back = gGRAY(32);
+	set_color_theme(theme);
 
 	load_timelist();
 
@@ -130,6 +114,27 @@ BOOL CTimeListDlg::OnInitDialog()
 
 	return TRUE;  // return TRUE unless you set the focus to a control
 	// 예외: OCX 속성 페이지는 FALSE를 반환해야 합니다.
+}
+
+void CTimeListDlg::set_color_theme(const CSCColorTheme& theme)
+{
+	//base 가 색 복사 + 시스템 버튼 + DWM(dark/round/border) 처리.
+	CSCThemeDlg::set_color_theme(theme);
+
+	if (m_static_alarm_list.GetSafeHwnd())
+		m_static_alarm_list.set_color_theme(m_theme);
+
+	if (m_check_autohide.GetSafeHwnd())
+		m_check_autohide.set_color_theme(m_theme);
+
+	if (m_list.GetSafeHwnd())
+		m_list.set_color_theme(m_theme);
+
+	if (m_msgbox.GetSafeHwnd())
+		m_msgbox.set_color_theme(m_theme);
+
+	if (GetSafeHwnd())
+		Invalidate();
 }
 
 BOOL CTimeListDlg::PreTranslateMessage(MSG* pMsg)
@@ -153,17 +158,6 @@ BOOL CTimeListDlg::PreTranslateMessage(MSG* pMsg)
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
 
-BOOL CTimeListDlg::OnEraseBkgnd(CDC* pDC)
-{
-	//OnPaint 와 동일 색으로 직접 erase. 기존 `return FALSE` 는 MFC 관례상 "erase 안 했음" 이라
-	//DefWindowProc 가 dialog class brush (시스템 회색) 로 fill 해버려 hide→show 시점에 회색 flash
-	//후 OnPaint 가 dark theme 으로 덮는 깜빡임이 생긴다.
-	CRect rc;
-	GetClientRect(rc);
-	pDC->FillSolidRect(rc, RGB(32, 32, 32));
-	return TRUE;
-}
-
 //프레임 드래그로 사용자가 resize 를 시작할 때 WS_EX_COMPOSITED 를 잠시 끈다.
 //COMPOSITED 가 켜진 상태로 resize 하면 자식 컨트롤들(리스트 텍스트 등) 의 매 paint 마다 전체 윈도우
 //compose 가 트리거돼 staggered flicker 가 보인다. show/hide 시점엔 다시 켜야 flash 가 안 생기므로
@@ -171,18 +165,18 @@ BOOL CTimeListDlg::OnEraseBkgnd(CDC* pDC)
 void CTimeListDlg::OnEnterSizeMove()
 {
 	ModifyStyleEx(WS_EX_COMPOSITED, 0);
-	CDialogEx::OnEnterSizeMove();
+	CSCThemeDlg::OnEnterSizeMove();
 }
 
 void CTimeListDlg::OnExitSizeMove()
 {
 	ModifyStyleEx(0, WS_EX_COMPOSITED);
-	CDialogEx::OnExitSizeMove();
+	CSCThemeDlg::OnExitSizeMove();
 }
 
 void CTimeListDlg::OnWindowPosChanged(WINDOWPOS* lpwndpos)
 {
-	CDialogEx::OnWindowPosChanged(lpwndpos);
+	CSCThemeDlg::OnWindowPosChanged(lpwndpos);
 
 	if (lpwndpos && (lpwndpos->flags & SWP_HIDEWINDOW))
 		return;
@@ -246,7 +240,7 @@ void CTimeListDlg::OnDestroy()
 			delete item;
 	}
 
-	CDialogEx::OnDestroy();
+	CSCThemeDlg::OnDestroy();
 }
 
 void CTimeListDlg::OnLButtonDown(UINT nFlags, CPoint point)
@@ -254,7 +248,7 @@ void CTimeListDlg::OnLButtonDown(UINT nFlags, CPoint point)
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
 	DefWindowProc(WM_NCLBUTTONDOWN, HTCAPTION, MAKEWORD(point.x, point.y));
 
-	CDialogEx::OnLButtonDown(nFlags, point);
+	CSCThemeDlg::OnLButtonDown(nFlags, point);
 }
 
 void CTimeListDlg::OnContextMenu(CWnd* pWnd, CPoint point)
@@ -323,13 +317,12 @@ void CTimeListDlg::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
 
-	CDialogEx::OnGetMinMaxInfo(lpMMI);
+	CSCThemeDlg::OnGetMinMaxInfo(lpMMI);
 }
 
 void CTimeListDlg::init_list()
 {
 	m_list.SetExtendedStyle(/*LVS_EX_GRIDLINES | */LVS_EX_FLATSB | /*LVS_EX_CHECKBOXES |*/ LVS_EX_FULLROWSELECT | LVS_EX_INFOTIP);
-	m_list.set_color_theme(CSCColorTheme::color_theme_dark_gray);//, false);
 	m_list.set_headings(_T("이름,120;등록 시각,80;간격,44;알람 시각,80;남은 시각,80;등록 날짜,88"));
 
 	m_list.allow_edit();
@@ -351,54 +344,6 @@ void CTimeListDlg::init_list()
 	m_list.set_draw_selected_border(false);
 	m_list.set_use_own_context_menu(false);
 }
-void CTimeListDlg::OnPaint()
-{
-	CPaintDC dc1(this);
-	CRect rc;
-	GetClientRect(rc);
-
-	CMemoryDC dc(&dc1, &rc);
-	dc.FillSolidRect(rc, RGB(32, 32, 32));
-}
-
-void CTimeListDlg::OnNcPaint()
-{
-	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
-	// 그리기 메시지에 대해서는 CDialogEx::OnNcPaint()을(를) 호출하지 마십시오.
-	CPaintDC dc(this);
-	CRect rc;
-
-	GetClientRect(rc);
-	dc.FillSolidRect(rc, red);
-}
-
-void CTimeListDlg::OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp)
-{
-	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-	if (bCalcValidRects)// && m_caption_removed)
-	{
-		//NCCALCSIZE_PARAMS* pParams = (NCCALCSIZE_PARAMS*)lParam;
-
-		// ?? 여기서 위쪽 잘라내기
-		//pParams->rgrc[0].top += 1; // 또는 0~8 정도 조절
-		lpncsp->rgrc[0].top -= 6;
-		//lpncsp->rgrc[0].bottom += 6;
-	}
-
-	CDialogEx::OnNcCalcSize(bCalcValidRects, lpncsp);
-}
-
-BOOL CTimeListDlg::OnNcActivate(BOOL bActive)
-{
-	Invalidate();
-	UpdateWindow();
-
-	//return TRUE;를 할 경우 비활성화 될 때 여전히 상단 바가 남는다. FALSE로 하니 남는 버그가 사라짐.
-	//return FALSE;를 할 경우 흰색바는 사라지지만 다른 dlg가 입력이벤트를 전혀 처리하지 못하는 현상이 발생함.
-	return TRUE;// FALSE;
-	return CDialogEx::OnNcActivate(bActive);
-}
-
 void CTimeListDlg::add(CString title, CString duration, bool add_favorite, bool floating, bool save_list)
 {
 	CTime tStart;
@@ -932,24 +877,6 @@ void CTimeListDlg::save_timelist()
 	}
 }
 
-LRESULT CTimeListDlg::OnNcHitTest(CPoint point)
-{
-	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
-	LRESULT result = CDialogEx::OnNcHitTest(point);
-
-	if (result == HTCLIENT)
-	{
-		ScreenToClient(&point);
-		if (point.y < 4)
-			return HTTOP;
-	}
-
-	return result;
-
-
-	return CDialogEx::OnNcHitTest(point);
-}
-
 void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
@@ -1083,12 +1010,12 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 
 	m_floating.ShowWindow(has_floating ? SW_SHOW : SW_HIDE);
 
-	CDialogEx::OnTimer(nIDEvent);
+	CSCThemeDlg::OnTimer(nIDEvent);
 }
 
 void CTimeListDlg::OnActivateApp(BOOL bActive, DWORD dwThreadID)
 {
-	CDialogEx::OnActivateApp(bActive, dwThreadID);
+	CSCThemeDlg::OnActivateApp(bActive, dwThreadID);
 
 	// TODO: 여기에 메시지 처리기 코드를 추가합니다.
 	if (GetOwner())

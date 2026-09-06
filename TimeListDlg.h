@@ -9,6 +9,7 @@
 #include "Common/CStatic/SCStatic/SCStatic.h"
 #include "Common/ResizeCtrl.h"
 #include "Common/CDialog/SCShapeDlg/SCShapeDlg.h"
+#include "Common/CDialog/SCThemeDlg/SCThemeDlg.h"
 
 class CAlarmItem
 {
@@ -39,7 +40,7 @@ public:
 };
 
 // CTimeListDlg 대화 상자
-class CTimeListDlg : public CDialogEx
+class CTimeListDlg : public CSCThemeDlg
 {
 	DECLARE_DYNAMIC(CTimeListDlg)
 
@@ -56,6 +57,12 @@ public:
 	void			add(CString title, CString duration, bool add_favorite = false, bool floating = false, bool save_list = true);
 	LRESULT			on_message_CSCShapeDlg(WPARAM wParam, LPARAM lParam);
 	void			set_alpha(int alpha);
+
+	//부모(CMiniClock2Dlg)나 테마 변경 시점에 호출. base 가 색 복사 + DWM(dark/round/border)까지 처리하고,
+	//여기서 자식 컨트롤들에 같은 테마를 전파한다. 개별 색 setter 를 쓰지 말 것 (Common claude.md §2.1) —
+	//타이틀바가 없는 이 창은 외곽 프레임 색도 cr_back 이라, 이 경로를 거치지 않으면 DWM border 가
+	//OS 기본 밝은 색으로 남는다.
+	void			set_color_theme(const CSCColorTheme& theme);
 
 protected:
 	CSCMessageBox	m_msgbox;
@@ -114,7 +121,6 @@ protected:
 public:
 	virtual BOOL OnInitDialog();
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
-	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnWindowPosChanged(WINDOWPOS* lpwndpos);
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedCancel();
@@ -126,11 +132,6 @@ public:
 	CGdiButton m_check_autohide;
 	CSCListCtrl m_list;
 	CSCShapeDlg m_floating;
-	afx_msg void OnPaint();
-	afx_msg void OnNcPaint();
-	afx_msg void OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp);
-	afx_msg BOOL OnNcActivate(BOOL bActive);
-	afx_msg LRESULT OnNcHitTest(CPoint point);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnActivateApp(BOOL bActive, DWORD dwThreadID);
 	afx_msg void OnBnClickedCheckAutoHide();

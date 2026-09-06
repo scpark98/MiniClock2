@@ -135,6 +135,15 @@
     <ClInclude Include="..\Common\system\SCKeyBindings\SCKeyBindings.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="..\Common\CToolTipCtrl\CSCToolTipCtrl\SCToolTipCtrl.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CDialog\SCThemeDlg\SCThemeDlg.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\CButton\SCSystemButtons\SCSystemButtons.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MiniClock2.cpp">
@@ -237,6 +246,15 @@
       <Filter>Common\CSCMenu</Filter>
     </ClCompile>
     <ClCompile Include="..\Common\system\SCKeyBindings\SCKeyBindings.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CToolTipCtrl\CSCToolTipCtrl\SCToolTipCtrl.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CDialog\SCThemeDlg\SCThemeDlg.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\CButton\SCSystemButtons\SCSystemButtons.cpp">
       <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
