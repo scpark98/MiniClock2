@@ -254,7 +254,13 @@ void CMiniClock2Dlg::load_setting()
 	{
 		if (sz == sizeof(CSCTextProperty))
 		{
-			memcpy(&m_text_prop, prop, sizeof(CSCTextProperty));
+			//20260906 by claude. CSCTextProperty 는 Common 15531684(2026-08-24) 에서
+			//std::vector<CSCTextShadow> shadows 가 추가되며 POD 가 아니게 됐다. 통째로 memcpy 하면
+			//살아있는 vector 위에 레지스트리에 저장돼 있던 옛 포인터가 덮여, 소멸자의
+			//_Tidy()→_Orphan_all() 이 그 주소를 읽다 죽는다 (종료 시 0xC0000005).
+			//shadows 앞의 POD 구간만 복사하고 vector 는 건드리지 않는다.
+			//shadows 뒤의 ruby_* 는 이 앱이 쓰지 않으므로 기본값을 그대로 둔다.
+			memcpy(&m_text_prop, prop, offsetof(CSCTextProperty, shadows));
 		}
 
 		delete[] reinterpret_cast<BYTE*>(prop);
@@ -265,7 +271,14 @@ void CMiniClock2Dlg::load_setting()
 
 void CMiniClock2Dlg::save_setting()
 {
-	AfxGetApp()->WriteProfileBinary(_T("setting"), _T("text property"), (LPBYTE)&m_text_prop, sizeof(CSCTextProperty));
+	//20260906 by claude. m_text_prop 을 그대로 쓰면 shadows(std::vector) 의 힙 포인터가 레지스트리에
+	//저장되고, 다음 실행에서 그 죽은 포인터를 되읽게 된다. 블롭 크기·형식은 그대로 두되(호환)
+	//vector 가 차지하는 구간만 0 으로 채워 포인터를 남기지 않는다.
+	BYTE blob[sizeof(CSCTextProperty)];
+	memcpy(blob, &m_text_prop, sizeof(blob));
+	memset(blob + offsetof(CSCTextProperty, shadows), 0, sizeof(m_text_prop.shadows));
+
+	AfxGetApp()->WriteProfileBinary(_T("setting"), _T("text property"), blob, sizeof(blob));
 }
 
 void CMiniClock2Dlg::OnSysCommand(UINT nID, LPARAM lParam)
