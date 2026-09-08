@@ -72,6 +72,15 @@ BOOL CMiniClock2App::InitInstance()
 		}
 	}
 
+	//20260907 by claude. 새 버전 검사 + 부팅 자동 실행 등록. 교체는 실행한 그 자리에서 한다.
+	//UI 초기화보다 먼저 한다 — 패치하는 경우에는 창을 띄우지 않고 죽고,
+	//배치파일이 이어서 새 exe 를 띄운다.
+	m_self_patch.server_path = _T("/download/tools/KoinoTools/MiniClock2");
+	m_self_patch.register_startup = true;
+
+	if (m_self_patch.startup())
+		return FALSE;
+
 	// Windows XP에서는 InitCommonControlsEx()를 필요로 합니다.
 	// 사용하도록 지정하는 경우, Windows XP 상에서 반드시 InitCommonControlsEx()가 필요합니다.
 	// InitCommonControlsEx()를 사용하지 않으면 창을 만들 수 없습니다.
@@ -134,6 +143,9 @@ BOOL CMiniClock2App::InitInstance()
 int CMiniClock2App::ExitInstance()
 {
 	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+
+	//20260907 by claude. 교체하지 못하고 남은 <exe>_ 가 있으면 여기서 한 번 더 시도한다.
+	m_self_patch.shutdown();
 
 	return CWinApp::ExitInstance();
 }
