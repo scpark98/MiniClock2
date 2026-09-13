@@ -78,6 +78,12 @@ protected:
 	//정렬 직후 / 삭제 직후 등 리스트 변경 시점에 호출.
 	void			ensure_floating();
 
+	//20260913 by claude. 선택 항목의 시작 시각을 현재로 리셋하고 간격을 minutes 분으로 바꾼다.
+	//= 남은 시간이 minutes 분이 된다. 선택이 없거나 잠긴 항목이면 아무것도 하지 않는다
+	//(잠김일 때는 OnMenuResetStartTime 과 동일하게 안내 메시지).
+	//"현재 시간부터 N분 타이머" 메뉴 핸들러들이 공유한다.
+	void			reset_start_time_and_set_duration(int minutes);
+
 	//만료 후 이 시간이 지나면 알람으로서 의미가 없다고 보고 (1) 발동시키지 않고 (2) 목록에서 삭제한다.
 	//두 판정이 같은 기준을 써야 "울리지도 않았는데 남아있는" 또는 "한참 지나서 울리는" 항목이 안 생긴다.
 	enum { alarm_expire_seconds = 600 };
@@ -144,4 +150,6 @@ public:
 	afx_msg void OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnEnterSizeMove();
 	afx_msg void OnExitSizeMove();
+	afx_msg void OnMenuResetAnd10minutes();
+	afx_msg void OnMenuResetAnd20minutes();
 };

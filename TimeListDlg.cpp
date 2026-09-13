@@ -56,6 +56,8 @@ BEGIN_MESSAGE_MAP(CTimeListDlg, CSCThemeDlg)
 	ON_NOTIFY(LVN_ENDLABELEDIT, IDC_LIST_TIME, &CTimeListDlg::OnLvnEndLabelEditListTime)
 	ON_WM_ENTERSIZEMOVE()
 	ON_WM_EXITSIZEMOVE()
+	ON_COMMAND(ID_MENU_RESET_AND_10MINUTES, &CTimeListDlg::OnMenuResetAnd10minutes)
+	ON_COMMAND(ID_MENU_RESET_AND_20MINUTES, &CTimeListDlg::OnMenuResetAnd20minutes)
 END_MESSAGE_MAP()
 
 
@@ -294,7 +296,14 @@ void CTimeListDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 		if (item->is_locked)
 		{
 			pMenu->CheckMenuItem(ID_MENU_LOCK_LISTITEM, MF_CHECKED);
+
+			//20260913 by claude. 잠금은 "이 항목을 바꾸지 않는다" 는 뜻이므로 수정 액션은 예외 없이 막는다.
+			//잠금 토글(해제 경로)과 클립보드 복사(읽기 전용)만 남긴다.
 			pMenu->EnableMenuItem(ID_MENU_RESET_START_TIME, MF_DISABLED);
+			pMenu->EnableMenuItem(ID_MENU_RESET_AND_10MINUTES, MF_DISABLED);
+			pMenu->EnableMenuItem(ID_MENU_RESET_AND_20MINUTES, MF_DISABLED);
+			pMenu->EnableMenuItem(ID_MENU_FLOATING, MF_DISABLED);
+			pMenu->EnableMenuItem(ID_MENU_DELETE, MF_DISABLED);
 		}
 		else
 		{
@@ -305,6 +314,8 @@ void CTimeListDlg::OnContextMenu(CWnd* pWnd, CPoint point)
 	{
 		pMenu->EnableMenuItem(ID_MENU_FLOATING, MF_DISABLED);
 		pMenu->EnableMenuItem(ID_MENU_RESET_START_TIME, MF_DISABLED);
+		pMenu->EnableMenuItem(ID_MENU_RESET_AND_10MINUTES, MF_DISABLED);
+		pMenu->EnableMenuItem(ID_MENU_RESET_AND_20MINUTES, MF_DISABLED);
 		pMenu->EnableMenuItem(ID_MENU_LOCK_LISTITEM, MF_DISABLED);
 		pMenu->EnableMenuItem(ID_MENU_COPY_TO_CLIPBOARD, MF_DISABLED);
 		pMenu->EnableMenuItem(ID_MENU_DELETE, MF_DISABLED);
@@ -1059,6 +1070,46 @@ void CTimeListDlg::OnMenuResetStartTime()
 	refresh_remain_and_sort();
 }
 
+void CTimeListDlg::reset_start_time_and_set_duration(int minutes)
+{
+	int selected = m_list.get_selected_index();
+	if (selected < 0)
+		return;
+
+	CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected);
+	if (item->is_locked)
+	{
+		m_msgbox.set_message(_T("잠긴 항목입니다."), MB_OK, 1);
+		return;
+	}
+
+	item->title.Format(_T("%d분 타이머"), minutes);
+	item->start = CTime::GetCurrentTime();
+	item->ts_duration = CTimeSpan(0, 0, minutes, 0);
+
+	//20260913 by claude. 항목이 1개면 refresh_remain_and_sort 가 리스트를 재구성하지 않고 돌아가므로
+	//바뀐 값이 걸린 컬럼은 여기서 직접 갱신한다. col_remain 은 OnTimer 가 매초 다시 쓴다.
+	CTime end = item->start + item->ts_duration;
+	m_list.set_text(selected, col_title, item->title);
+	m_list.set_text(selected, col_start, get_time_str(item->start));
+	m_list.set_text(selected, col_duration, get_time_str(item->ts_duration));
+	m_list.set_text(selected, col_end, get_time_str(end));
+	m_list.set_text(selected, col_date, get_date_str(item->start));
+
+	save_timelist();
+	refresh_remain_and_sort();
+}
+
+void CTimeListDlg::OnMenuResetAnd10minutes()
+{
+	reset_start_time_and_set_duration(10);
+}
+
+void CTimeListDlg::OnMenuResetAnd20minutes()
+{
+	reset_start_time_and_set_duration(20);
+}
+
 void CTimeListDlg::OnMenuFloating()
 {
 	int selected = m_list.get_selected_index();
@@ -1066,6 +1117,14 @@ void CTimeListDlg::OnMenuFloating()
 		return;
 
 	CAlarmItem* item = (CAlarmItem*)m_list.GetItemData(selected);
+
+	//20260913 by claude. 잠긴 항목은 수정 대상이 아니다. 다른 수정 액션들과 같은 처리.
+	if (item->is_locked)
+	{
+		m_msgbox.set_message(_T("잠긴 항목입니다."), MB_OK, 1);
+		return;
+	}
+
 	item->is_floating = !item->is_floating;
 
 	//선택 이외 항목들은 floating false로 만든다.
@@ -1211,6 +1270,22 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 	TRACE(_T("edit. %d, %d\n"), item, sub_item);
 
 	CAlarmItem* data = (CAlarmItem*)m_list.GetItemData(item);
+
+	//20260913 by claude. 잠긴 항목은 수정 대상이 아니다. 편집 시작 자체를 막는 훅이 CSCListCtrl 에 없고
+	//m_edit_readonly 는 컨트롤 전체 플래그라, 여기서 되돌린다. data 는 아직 안 바뀌었으므로 편집 가능한
+	//네 컬럼을 data 기준으로 다시 써서 화면을 원래대로 맞춘다.
+	if (data->is_locked)
+	{
+		m_list.set_text(item, col_title, data->title);
+		m_list.set_text(item, col_start, get_time_str(data->start));
+		m_list.set_text(item, col_duration, get_time_str(data->ts_duration));
+		m_list.set_text(item, col_end, get_time_str(data->start + data->ts_duration));
+
+		m_msgbox.set_message(_T("잠긴 항목입니다."), MB_OK, 1);
+
+		*pResult = 0;
+		return;
+	}
 
 	if (sub_item == col_title)
 	{
