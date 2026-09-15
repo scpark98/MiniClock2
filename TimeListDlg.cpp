@@ -1014,7 +1014,7 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 	}
 
 	int day_of_week = t.GetDayOfWeek();
-	if ((day_of_week == 2 || day_of_week == 6) && (t.GetHour() == 8 && t.GetMinute() == 55 && t.GetSecond() == 0))
+	if ((find(get_computer_name(), _T("koino")) >= 0) && (day_of_week == 2 || day_of_week == 6) && (t.GetHour() == 8 && t.GetMinute() == 55 && t.GetSecond() == 0))
 	{
 		m_msgbox.DoModal(_T("특정 요일 및 시각 알림!"));
 	}

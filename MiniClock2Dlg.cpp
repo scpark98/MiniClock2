@@ -197,7 +197,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 
 	RestoreWindowPosition(&theApp, this);
 
-	m_temperature.set_text(this, _T("GPU -% -℃"), 12,
+	m_temperature.set_text(this, _T("GPU -% -℃"), 11,
 		Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),
 		Gdiplus::Color(212, 132, 125, 91),
 		Gdiplus::Color(255, 0, 0, 0),
@@ -205,6 +205,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 		Gdiplus::Color(1, 0, 0, 0));		//완전 투명한 배경처럼 보이면서 드래그하여 이동하기도 편하다.
 	RestoreWindowPosition(&theApp, &m_temperature, _T("m_temperature"), false, true, false);
 	m_temperature.ShowWindow(theApp.GetProfileInt(_T("setting"), _T("nvidia info"), true) ? SW_SHOW : SW_HIDE);
+	m_temperature.use_shift_move();
 
 	rebuild_image();
 
