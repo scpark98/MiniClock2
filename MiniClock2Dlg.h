@@ -75,6 +75,12 @@ protected:
 	//반복 재assert 해서 늦게 올라오는 topmost 들 위로 다시 가져온다.
 	int					m_topmost_reassert_count = 0;
 
+	//20261015 by claude. 작업표시줄도 topmost 라 클릭되면 우리 창 위로 올라온다. OnActivateApp 은
+	//우리 앱이 비활성화될 때만 오므로, 우리 앱이 비활성 상태에서 작업표시줄이 눌리는 경우는 못 잡는다.
+	//포그라운드가 바뀔 때마다 topmost 를 재assert 해서 다시 위로 올린다.
+	HWINEVENTHOOK		m_foreground_hook = NULL;
+	static void CALLBACK on_foreground_changed(HWINEVENTHOOK hook, DWORD event, HWND hwnd, LONG id_object, LONG id_child, DWORD event_thread, DWORD event_time);
+
 	int					m_alpha = 255;
 	//미디어 플레이어 사운드 출력 중에는 알파를 낮춰 시야를 가리지 않는다.
 	//사운드가 멈춰도 즉시 복원하지 말고 n초 대기 — 트랙 이동·짧은 무음 구간에서

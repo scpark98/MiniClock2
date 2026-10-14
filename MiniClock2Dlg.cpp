@@ -206,6 +206,7 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	RestoreWindowPosition(&theApp, &m_temperature, _T("m_temperature"), false, true, false);
 	m_temperature.ShowWindow(theApp.GetProfileInt(_T("setting"), _T("nvidia info"), true) ? SW_SHOW : SW_HIDE);
 	m_temperature.use_shift_move();
+	m_temperature.set_allow_move_shift_arrow();
 
 	rebuild_image();
 
@@ -214,6 +215,8 @@ BOOL CMiniClock2Dlg::OnInitDialog()
 	SetTimer(timer_gpu_temperature, 500, NULL);
 	SetTimer(timer_on_top, 5000, NULL);
 	SetTimer(timer_audio_detect, 5000, NULL);
+
+	m_foreground_hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, NULL, on_foreground_changed, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
 
 	//현재 모니터 개수를 정상 상태로 기록. 이후 WM_DISPLAYCHANGE 에서 줄어들면 lock.
 	enum_display_monitors();
@@ -362,8 +365,10 @@ bool CMiniClock2Dlg::should_skip_position_save(CWnd* pWnd) const
 	if (!GetMonitorInfo(hMon, &mi))
 		return true;
 
+	//20261015 by claude. rcWork 가 아닌 rcMonitor 기준 — 작업표시줄 위로도 topmost 재assert 되므로
+	//사용자가 시계를 작업표시줄 위에 두는 경우가 있다. rcWork 기준이면 그 위치는 저장되지 않는다.
 	CRect inter;
-	if (!inter.IntersectRect(rc, CRect(mi.rcWork)) || inter.Width() < 20 || inter.Height() < 20)
+	if (!inter.IntersectRect(rc, CRect(mi.rcMonitor)) || inter.Width() < 20 || inter.Height() < 20)
 		return true;
 
 	return false;
@@ -968,6 +973,19 @@ void CMiniClock2Dlg::OnMenuClose()
 	OnBnClickedCancel();
 }
 
+void CALLBACK CMiniClock2Dlg::on_foreground_changed(HWINEVENTHOOK hook, DWORD event, HWND hwnd, LONG id_object, LONG id_child, DWORD event_thread, DWORD event_time)
+{
+	CMiniClock2Dlg* dlg = (CMiniClock2Dlg*)AfxGetApp()->m_pMainWnd;
+	if (!dlg || !::IsWindow(dlg->m_hWnd))
+		return;
+
+	if (!theApp.GetProfileInt(_T("setting"), _T("always on top"), true) || dlg->m_context_menu_open)
+		return;
+
+	TRACE(_T("on_foreground_changed. reassert topmost\n"));
+	dlg->SetWindowPos(&wndTopMost, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+}
+
 void CMiniClock2Dlg::OnActivateApp(BOOL bActive, DWORD dwThreadID)
 {
 	//다른 앱이 포커스를 가져갈 때마다 topmost 재assert. timer 가 끝난 뒤에도 늦게 올라오는
@@ -1030,6 +1048,36 @@ BOOL CMiniClock2Dlg::PreTranslateMessage(MSG* pMsg)
 	//메뉴 캡션의 '\tKey' 로 등록된 단축키를 accelerator table 로 발화 → 동일 WM_COMMAND 경로.
 	if (m_hAccel && ::TranslateAccelerator(m_hWnd, m_hAccel, pMsg))
 		return TRUE;
+
+	if (pMsg->message == WM_KEYDOWN && IsShiftPressed())
+	{
+		int dx = 0;
+		int dy = 0;
+
+		switch (pMsg->wParam)
+		{
+			case VK_LEFT:
+				dx = -1;
+				break;
+			case VK_RIGHT:
+				dx = 1;
+				break;
+			case VK_UP:
+				dy = -1;
+				break;
+			case VK_DOWN:
+				dy = 1;
+				break;
+		}
+
+		if (dx != 0 || dy != 0)
+		{
+			CRect rw;
+			GetWindowRect(rw);
+			SetWindowPos(NULL, rw.left + dx, rw.top + dy, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+			return TRUE;
+		}
+	}
 
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
@@ -1201,6 +1249,11 @@ void CMiniClock2Dlg::OnDestroy()
 	{
 		::DestroyAcceleratorTable(m_hAccel);
 		m_hAccel = NULL;
+	}
+	if (m_foreground_hook)
+	{
+		UnhookWinEvent(m_foreground_hook);
+		m_foreground_hook = NULL;
 	}
 
 	release_render_buffer();

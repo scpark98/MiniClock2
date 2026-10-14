@@ -91,11 +91,13 @@ BOOL CTimeListDlg::OnInitDialog()
 	m_check_autohide.set_font_weight(FW_BOLD);
 	m_check_autohide.SetCheck(theApp.GetProfileInt(_T("TimeListDlg"), _T("auto hide"), false));
 
-	m_floating.set_text(this, _T(" "), 12, Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
+	m_floating.set_text(this, _T(" "), 11, Gdiplus::FontStyle::FontStyleBold, 0.0f, 1.6f, _T("DSEG7 Classic"),//_T("맑은 고딕")),
 		Gdiplus::Color(255, 128, 128, 192),
 		Gdiplus::Color(255, 0, 0, 0),
 		Gdiplus::Color(255, 64, 64, 64),
 		Gdiplus::Color(1, 0, 0, 0));
+	m_floating.use_shift_move();
+	m_floating.set_allow_move_shift_arrow();
 	RestoreWindowPosition(&theApp, &m_floating, _T("TimeListDlg\\m_floating"), false, false, false);
 
 	RestoreWindowPosition(&theApp, this, _T("TimeListDlg"));// , false, true, true);
@@ -932,7 +934,12 @@ void CTimeListDlg::OnTimer(UINT_PTR nIDEvent)
 			//한글 폰트로 바꾸고 </f></sz></st> 로 닫아 시각 행은 기존 표시 그대로 유지한다.
 			//외곽선도 기본값(1.6)은 작은 한글의 속을 메우므로 이름 행에서만 얇게 준다.
 			CString text_floating;
-			text_floating.Format(_T("<f=맑은 고딕><sz=12><st=1><cr=#%08X>%s</cr></st></sz></f><br>%s"),
+			//20261015 by claude. CSCShapeDlg 는 <br> 줄 위에 줄간격 +20% 를 더하고, 맑은 고딕 줄 박스는 글자보다
+			//위아래 여백이 커서 두 줄이 한 줄 띄운 것처럼 벌어진다. <vsp> 로 간격을 직접 지정한다.
+			//단 <vsp> 는 윗줄 글자가 줄 박스 맨 위에서 시작한다고 보고 계산하므로, 맑은 고딕(윗여백 큼) 아래에
+			//DSEG7(윗여백 작음)이 오면 실제 간격은 vsp 보다 좁다. 20261015 실측(주 모니터): 실제 간격 = vsp - 9px
+			//(제목 sz=12, 시각 11 일 때). vsp=13 → 약 4px. 제목 크기를 바꾸면 이 차이도 달라진다.
+			text_floating.Format(_T("<f=맑은 고딕><sz=10><st=1><cr=#%08X>%s</cr></st></sz></f><br><vsp=13>%s"),
 				cr_title.GetValue(), item->title.GetString(), str.GetString());
 
 			setting->text = text_floating;
