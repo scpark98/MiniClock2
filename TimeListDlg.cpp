@@ -1267,6 +1267,51 @@ void CTimeListDlg::on_menu_favorites(UINT nID)
 	add(token[0], token[1], false, (token.size() == 3 ? _ttoi(token[2]) : false));
 }
 
+//사용자가 입력한 절대 시각을 get_CTime_from_datetime_str 이 요구하는 "HH:MM:SS" 로 맞춘다.
+//  순수 숫자 1~2자리 → HH       (예: "9"      → 09:00:00)
+//  순수 숫자 3~4자리 → HHMM     (예: "1234"   → 12:34:00)
+//  순수 숫자 5~6자리 → HHMMSS   (예: "123456" → 12:34:56)
+//  콜론 형식은 앞에서부터 시:분:초, 빠진 자리는 0 (예: "8:10" → 08:10:00, "08" → 08:00:00)
+static CString normalize_clock_time_str(CString text)
+{
+	text.Trim();
+
+	int hh = 0;
+	int mm = 0;
+	int ss = 0;
+
+	if (IsNatural(text) && text.GetLength() >= 1 && text.GetLength() <= 6)
+	{
+		int len = text.GetLength();
+		int target = (len <= 2) ? 2 : (len <= 4) ? 4 : 6;
+		while (text.GetLength() < target)
+			text = _T("0") + text;
+
+		hh = _ttoi(text.Left(2));
+		mm = (target >= 4) ? _ttoi(text.Mid(2, 2)) : 0;
+		ss = (target >= 6) ? _ttoi(text.Mid(4, 2)) : 0;
+	}
+	else
+	{
+		//20261015 by claude. get_CTime_from_datetime_str 은 콜론을 지운 뒤 6자리를 가정하고 Left/Mid/Right(2) 로
+		//자른다. "08:10" 을 그대로 넘기면 "0810" 이 되어 ASSERT 에 걸리고(디버그 크래시), 릴리즈에서는 초가
+		//"10" 으로 잘못 잡힌다. 그래서 여기서 자리를 채워서 넘긴다.
+		std::deque<CString> tokens;
+		get_token_str(text, tokens, _T(":"));
+
+		if (tokens.size() >= 1)
+			hh = _ttoi(tokens[0]);
+		if (tokens.size() >= 2)
+			mm = _ttoi(tokens[1]);
+		if (tokens.size() >= 3)
+			ss = _ttoi(tokens[2]);
+	}
+
+	CString result;
+	result.Format(_T("%02d:%02d:%02d"), hh, mm, ss);
+	return result;
+}
+
 void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	NMLVDISPINFO* pDispInfo = reinterpret_cast<NMLVDISPINFO*>(pNMHDR);
@@ -1300,25 +1345,7 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 	}
 	else if (sub_item == col_start)
 	{
-		// 절대 시각 입력 해석 (HH:MM:SS):
-		//   순수 숫자 1~2자리 → 좌측 0 패딩 → HH       (예: "9"      → 09:00:00)
-		//   순수 숫자 3~4자리 → 좌측 0 패딩 → HHMM     (예: "1234"   → 12:34:00)
-		//   순수 숫자 5~6자리 → 좌측 0 패딩 → HHMMSS   (예: "123456" → 12:34:56)
-		//   콜론 형식("12:34", "12:34:56" 등)은 그대로 get_CTime_from_datetime_str 에 전달.
-		if (IsNatural(text) && text.GetLength() >= 1 && text.GetLength() <= 6)
-		{
-			int len = text.GetLength();
-			int target = (len <= 2) ? 2 : (len <= 4) ? 4 : 6;
-			while (text.GetLength() < target)
-				text = _T("0") + text;
-
-			CString hh = text.Left(2);
-			CString mm = (target >= 4) ? text.Mid(2, 2) : _T("00");
-			CString ss = (target >= 6) ? text.Mid(4, 2) : _T("00");
-			text.Format(_T("%s:%s:%s"), (LPCTSTR)hh, (LPCTSTR)mm, (LPCTSTR)ss);
-		}
-
-		data->start = get_CTime_from_datetime_str(_T(""), text);
+		data->start = get_CTime_from_datetime_str(_T(""), normalize_clock_time_str(text));
 		CTime tEnd = data->start + data->ts_duration;
 		m_list.set_text(item, col_start, get_time_str(data->start));
 		m_list.set_text(item, col_end, get_time_str(tEnd));
@@ -1380,21 +1407,7 @@ void CTimeListDlg::OnLvnEndLabelEditListTime(NMHDR* pNMHDR, LRESULT* pResult)
 	}
 	else if (sub_item == col_end)
 	{
-		// 절대 시각 입력 해석 (col_start 와 동일 규칙).
-		if (IsNatural(text) && text.GetLength() >= 1 && text.GetLength() <= 6)
-		{
-			int len = text.GetLength();
-			int target = (len <= 2) ? 2 : (len <= 4) ? 4 : 6;
-			while (text.GetLength() < target)
-				text = _T("0") + text;
-
-			CString hh = text.Left(2);
-			CString mm = (target >= 4) ? text.Mid(2, 2) : _T("00");
-			CString ss = (target >= 6) ? text.Mid(4, 2) : _T("00");
-			text.Format(_T("%s:%s:%s"), (LPCTSTR)hh, (LPCTSTR)mm, (LPCTSTR)ss);
-		}
-
-		CTime tEnd = get_CTime_from_datetime_str(_T(""), text);
+		CTime tEnd = get_CTime_from_datetime_str(_T(""), normalize_clock_time_str(text));
 
 		// 종료 시각이 시작 시각보다 이르면 다음 날을 의도한 것으로 보고 +1일 보정.
 		if (tEnd < data->start)
